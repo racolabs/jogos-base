@@ -71,32 +71,26 @@ Peças (iguais nos dois temas): `#FFF6E6` `#FFE8B8` `#FFD84D` `#FFB547` `#FF8A5C
 - Curvas: saída `cubic-bezier(.22, 1, .36, 1)`, mola `cubic-bezier(.34, 1.56, .64, 1)`, vai e volta `cubic-bezier(.65, 0, .35, 1)`.
 - Durações: toque 90, deslize 120, nascer 180, junção 220, carta voando 220, folha 300, número rolando 400, celebração 600 a 1.200 ms.
 - Com "reduzir movimento" (do aparelho ou do jogo), tudo vira esmaecer curto e não há confete nem cascata.
+- **Nada treme**: nem tabuleiro nem tela, nem na jogada que não vale nem no fim de jogo (decisão do Rafael no teste v1).
+- Junção do Dobra: só o "pop" da peça. A partir de 128, um brilho suave que se abre em volta dela (sem faíscas).
+- Aviso de prêmio durante a partida aparece no topo, compacto, por 1,8 s, e nunca cobre a área de jogo.
+- Dica fica marcada (anel dourado) até a próxima jogada.
 
-## Som
+## Som (v2, depois do teste)
 
-Sintetizado no jogo (Web Audio), sem arquivo para baixar. Madeira e vidro. Volume padrão 70%, chave própria.
+Sintetizado no jogo (Web Audio), sem arquivo para baixar. Só senoide, volume baixo, registro médio. Chave própria.
+Nada toca no deslize nem na jogada que não vale.
 
 | Momento | Som |
 | --- | --- |
-| Toque de botão | clique senoidal 1.300 Hz, 30 ms |
-| Deslize (Dobra) | sopro grave filtrado, 70 ms |
-| Junção (Dobra) | nota triangular que sobe a pentatônica a cada nível da peça |
-| Jogada que não vale | batida grave que desce, 80 ms |
-| Pegar e pousar carta | estalo de papel e toque no feltro |
+| Toque de botão | toque quase mudo, 880 Hz, 50 ms |
+| Junção (Dobra) | nota suave a partir de 392 Hz que sobe a pentatônica com a peça |
+| Fim de jogo (Dobra) | duas notas que descem |
+| Pegar e pousar carta | estalo de papel e toque no feltro (a revisar no mesmo tom do Dobra) |
 | Carta na pilha final | sino que sobe com o valor da carta |
-| Prêmio entregue (todos) | dim-dom dourado |
-| Vitória e recorde | arpejo maior |
+| Prêmio entregue (todos) | dim-dom suave |
+| Vitória e recorde | arpejo curto e baixo |
 
-## Vibração
+## Vibração (v2)
 
-Só Android (o iPhone não deixa site vibrar; no app usamos o motor tátil do sistema). Chave própria.
-
-| Momento | Padrão (ms) |
-| --- | --- |
-| Toque | 8 |
-| Junção / carta na pilha final | 10 |
-| Junção de 128+ | 12 · 30 · 12 |
-| Jogada que não vale | 6 |
-| Prêmio entregue | 16 · 40 · 24 |
-| Recorde | 20 · 40 · 20 · 40 · 60 |
-| Vitória | 30 · 50 · 30 · 50 · 80 |
+Só no prêmio entregue (16 · 40 · 24 ms). Nunca durante a jogada. Só Android no site; no app, motor tátil do sistema.
