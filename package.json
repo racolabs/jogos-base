@@ -6,6 +6,7 @@
   "description": "Base compartilhada dos jogos casuais. Instalada pelos jogos por tag git (github:racolabs/jogos-base#vX.Y.Z).",
   "exports": {
     ".": "./src/index.ts",
+    "./ads": "./src/ads/index.ts",
     "./config": "./src/config/index.ts"
   },
   "files": [
