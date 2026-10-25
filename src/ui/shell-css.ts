@@ -13,7 +13,7 @@ export const SHELL_CSS = `
 .rl-btn--reward { background: var(--gold); color: #1C1D2B; box-shadow: inset 0 -4px 0 rgba(120, 70, 0, .3); }
 .rl-btn--quiet { background: transparent; box-shadow: none; min-height: 48px; font-weight: 700; color: var(--muted); }
 .rl-btn svg { width: 22px; height: 22px; flex: 0 0 auto; }
-.rl-btn__badge { font-size: calc(14px * var(--fs)); font-weight: 700; padding: 3px 8px; border-radius: 8px; background: var(--gold-soft); color: var(--gold-ink); }
+.rl-btn__badge { white-space: nowrap; font-size: calc(14px * var(--fs)); font-weight: 700; padding: 3px 8px; border-radius: 8px; background: var(--gold-soft); color: var(--gold-ink); }
 .rl-scrim { position: absolute; inset: 0; z-index: 1000; background: rgba(18, 19, 32, .46); display: flex; align-items: flex-end; animation: rl-fade .2s ease-out; }
 .rl-sheet { width: 100%; background: var(--surface); color: var(--ink); border-radius: 26px 26px 0 0; display: flex; flex-direction: column; gap: 14px;
   padding-block: 10px max(20px, env(safe-area-inset-bottom, 0px)); padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
@@ -38,6 +38,19 @@ export const SHELL_CSS = `
 .rl-seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--surface-2); gap: 2px; flex-wrap: wrap; }
 .rl-seg button { border: 0; background: transparent; color: var(--ink); padding: 8px 12px; border-radius: 9px; font: 700 calc(15px * var(--fs)) var(--font-ui); cursor: pointer; min-height: 40px; }
 .rl-seg button[aria-pressed="true"] { background: var(--surface); }
+.rl-install { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 44px 12px 12px; border-radius: 20px; background: var(--surface); color: var(--ink); }
+.rl-install__icon { width: 48px; height: 48px; border-radius: 12px; flex: 0 0 auto; }
+.rl-install__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.rl-install__text strong { font-weight: 800; }
+.rl-install__text span { color: var(--muted); font-size: calc(14px * var(--fs)); }
+.rl-install__go { flex: 0 0 auto; border: 0; border-radius: 12px; padding: 10px 14px; min-height: 44px; background: var(--ink); color: var(--ground); font: 800 calc(15px * var(--fs)) var(--font-ui); cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .2); }
+.rl-install__go:active { transform: translateY(2px); }
+.rl-install__close { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.rl-install__close svg { width: 18px; height: 18px; }
+.rl-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; counter-reset: step; }
+.rl-steps li { display: flex; align-items: center; gap: 14px; font-weight: 600; }
+.rl-steps__icon { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 12px; background: var(--surface-2); color: var(--focus); display: grid; place-items: center; }
+.rl-steps__icon svg { width: 24px; height: 24px; }
 @keyframes rl-fade { from { opacity: 0; } }
 @keyframes rl-sheet { from { transform: translateY(100%); } }
 @keyframes rl-up { from { transform: translate(-50%, 30px); opacity: 0; } }
