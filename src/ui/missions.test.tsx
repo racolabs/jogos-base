@@ -37,6 +37,8 @@ describe('metas na tela', () => {
     const { container, rerender } = render(<MissionPill lang="en" mission={null} />);
     expect(container.innerHTML).toBe('');
     rerender(<MissionPill lang="pt" mission={VIEWS[2]!} />);
-    expect(screen.getByRole('status').textContent).toContain('Meta: 2.500 pontos numa partida1.840/2.500');
+    // Sem região "ao vivo": a etiqueta muda a cada jogada e não deve ser anunciada sempre.
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(container.textContent).toContain('Meta: 2.500 pontos numa partida1.840/2.500');
   });
 });

@@ -168,7 +168,7 @@ export function MissionPill({ lang, mission }: { lang: Lang; mission: MissionVie
   const r = 10;
   const c = 2 * Math.PI * r;
   return (
-    <div className="rl-mpill" role="status" aria-label={`${t.goal}: ${mission.text}`}>
+    <div className="rl-mpill">
       <svg className="rl-mpill__ring" viewBox="0 0 26 26" aria-hidden="true">
         <circle className="bg" cx="13" cy="13" r={r} />
         <circle className="fg" cx="13" cy="13" r={r} strokeDasharray={c} strokeDashoffset={c * (1 - mission.progress / mission.target)} />
