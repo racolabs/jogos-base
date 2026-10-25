@@ -8,10 +8,19 @@ updates:
     groups:
       dev:
         dependency-type: development
+    # Node, tipos do Node e TypeScript mudam de versão maior juntos e de propósito, em todos os repositórios.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
