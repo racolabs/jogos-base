@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Base compartilhada dos jogos casuais. Instalada pelos jogos por tag git (github:rafa-coelho/jogos-base#vX.Y.Z).",
+  "description": "Base compartilhada dos jogos casuais. Instalada pelos jogos por tag git (github:racolabs/jogos-base#vX.Y.Z).",
   "exports": {
     ".": "./src/index.ts"
   },
