@@ -11,7 +11,8 @@
     "./storage": "./src/storage/index.ts",
     "./i18n": "./src/i18n/index.ts",
     "./daily": "./src/daily/index.ts",
-    "./ui": "./src/ui/index.ts"
+    "./ui": "./src/ui/index.ts",
+    "./metrics": "./src/metrics/index.ts"
   },
   "files": [
     "src",
