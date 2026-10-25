@@ -4,3 +4,4 @@ export { Feedback, REWARD_VIBRATION, type AudioOut, type Cue, type FeedbackDeps,
 export * from './components.tsx';
 export { SHELL_CSS } from './shell-css.ts';
 export * from './install.tsx';
+export * from './missions.tsx';
