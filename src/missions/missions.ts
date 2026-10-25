@@ -47,13 +47,18 @@ export function msUntilLocalMidnight(now: Date | number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime() - d.getTime();
 }
 
-/** As 3 metas do dia: uma de cada nível, escolhidas pelo dia e pelo jogo. */
+/** As 3 metas do dia: uma de cada nível, escolhidas pelo dia e pelo jogo, sem repetir o tipo de meta. */
 export function dailyMissions(pool: readonly MissionDef[], day: string, game: string): MissionDef[] {
   const rnd = seededRandom(`missions:${game}:${day}`);
+  const used = new Set<string>();
   return ([0, 1, 2] as const).map((level) => {
-    const options = pool.filter((m) => m.level === level);
-    if (!options.length) throw new Error(`sem metas de nível ${level} para ${game}`);
-    return options[Math.floor(rnd() * options.length)]!;
+    const all = pool.filter((m) => m.level === level);
+    if (!all.length) throw new Error(`sem metas de nível ${level} para ${game}`);
+    const fresh = all.filter((m) => !used.has(m.metric));
+    const options = fresh.length ? fresh : all;
+    const pick = options[Math.floor(rnd() * options.length)]!;
+    used.add(pick.metric);
+    return pick;
   });
 }
 
