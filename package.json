@@ -10,7 +10,8 @@
     "./config": "./src/config/index.ts",
     "./storage": "./src/storage/index.ts",
     "./i18n": "./src/i18n/index.ts",
-    "./daily": "./src/daily/index.ts"
+    "./daily": "./src/daily/index.ts",
+    "./ui": "./src/ui/index.ts"
   },
   "files": [
     "src",
