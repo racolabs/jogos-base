@@ -20,6 +20,13 @@ describe('metas do dia', () => {
     expect(seen.size).toBe(2);
   });
 
+  it('não repete o tipo de meta no mesmo dia quando há opção', () => {
+    for (let d = 1; d <= 28; d++) {
+      const ms = dailyMissions(POOL, `2026-12-${String(d).padStart(2, '0')}`, 'dobra');
+      expect(new Set(ms.map((x) => x.metric)).size).toBe(3);
+    }
+  });
+
   it('soma ao longo do dia, guarda o melhor e avisa quando cumpre', () => {
     const ms = [POOL[0]!, POOL[2]!, POOL[5]!];
     let st = emptyMissions('d');
