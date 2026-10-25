@@ -1,5 +1,5 @@
 # jogos-base não vai ao ar: a imagem só existe para provar que tipos e testes passam.
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /app
 RUN npm install -g pnpm@10.28.0
 COPY package.json pnpm-lock.yaml ./
