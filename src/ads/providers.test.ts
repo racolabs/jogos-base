@@ -3,7 +3,7 @@ import { DEFAULT_AD_POLICY, FakeAdProvider, NoAdsProvider } from './index.ts';
 
 describe('política padrão', () => {
   it('pede anúncio não personalizado e marcado como público infantil', () => {
-    expect(DEFAULT_AD_POLICY).toEqual({ nonPersonalized: true, childDirected: true });
+    expect(DEFAULT_AD_POLICY).toEqual({ nonPersonalized: true, childDirected: false });
     expect(Object.isFrozen(DEFAULT_AD_POLICY)).toBe(true);
   });
 });

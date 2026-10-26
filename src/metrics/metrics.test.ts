@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HttpSink, Metrics, sanitizeData, type MetricsEvent, type MetricsSink } from './index.ts';
+import { AnalisaSink, HttpSink, Metrics, sanitizeData, type MetricsEvent, type MetricsSink } from './index.ts';
 
 class MemorySink implements MetricsSink {
   batches: MetricsEvent[][] = [];
@@ -31,7 +31,7 @@ describe('Metrics', () => {
     m.track('game_end', { score: 900, maxTile: 128 });
     await m.flush();
     expect(sink.batches[0]![0]).toEqual({
-      v: 1, game: 'dobra', type: 'game_end', at: 1000, pid: 'pid-123456789012345', sid: 's1', lang: 'pt', groups: { gap: 'b' }, data: { score: 900, maxTile: 128 },
+      v: 1, id: expect.any(String), game: 'dobra', type: 'game_end', at: 1000, pid: 'pid-123456789012345', sid: 's1', lang: 'pt', groups: { gap: 'b' }, data: { score: 900, maxTile: 128 },
     });
   });
 
@@ -77,7 +77,7 @@ describe('Metrics', () => {
 });
 
 describe('HttpSink', () => {
-  const event = { v: 1, game: 'dobra', type: 'session_start', at: 1, pid: 'p', sid: 's', lang: 'pt', groups: {}, data: {} } as MetricsEvent;
+  const event = { v: 1, id: 'e1', game: 'dobra', type: 'session_start', at: 1, pid: 'p', sid: 's', lang: 'pt', groups: {}, data: {} } as MetricsEvent;
 
   it('usa sendBeacon quando o navegador aceita', async () => {
     const sent: string[] = [];
@@ -97,5 +97,32 @@ describe('HttpSink', () => {
   it('resposta de erro devolve false (o lote fica na fila)', async () => {
     const sink = new HttpSink('/m', { beacon: null, fetchFn: async () => new Response(null, { status: 503 }) });
     expect(await sink.send([event])).toBe(false);
+  });
+});
+
+describe('AnalisaSink', () => {
+  const ev = (type: MetricsEvent['type'], data: MetricsEvent['data'] = {}): MetricsEvent => ({
+    v: 1, id: `id-${type}`, game: 'dobra', type, at: 1000, pid: 'pid-1', sid: 'sid-1', lang: 'pt', groups: { gap: 'b' }, data,
+  });
+  const page = () => ({ path: '/pt/', url: 'https://dobra.racolabs.app/pt/', referrer: 'https://google.com/', search: '?utm_source=insta&x=1' });
+
+  it('converte para o protocolo v1: chave, ids estáveis, propriedades planas e page_view no início da sessão', () => {
+    const sink = new AnalisaSink({ siteKey: 'pk_test', now: () => 5000, page });
+    const body = JSON.parse(sink.body([ev('session_start'), ev('game_end', { score: 900 })]));
+    expect(body).toMatchObject({ site_key: 'pk_test', sent_at: 5000, context: { platform: 'web', framework: 'web', locale: 'pt-BR' } });
+    expect(body.batch).toEqual([
+      { id: 'id-session_start.pv', event: 'page_view', ts: 1000, anon_id: 'pid-1', session_id: 'sid-1', path: '/pt/', url: 'https://dobra.racolabs.app/pt/', referrer: 'https://google.com/', utm: { source: 'insta' }, props: { game: 'dobra', lang: 'pt', ab_gap: 'b' } },
+      { id: 'id-session_start', event: 'session_start', ts: 1000, anon_id: 'pid-1', session_id: 'sid-1', path: '/pt/', props: { game: 'dobra', lang: 'pt', ab_gap: 'b' } },
+      { id: 'id-game_end', event: 'game_end', ts: 1000, anon_id: 'pid-1', session_id: 'sid-1', path: '/pt/', props: { game: 'dobra', lang: 'pt', ab_gap: 'b', score: 900 } },
+    ]);
+  });
+
+  it('manda como text/plain sem cookie e devolve false se falhar', async () => {
+    const calls: RequestInit[] = [];
+    const ok = new AnalisaSink({ siteKey: 'pk', page, fetchFn: (async (_u: string, init: RequestInit) => (calls.push(init), { ok: true })) as unknown as typeof fetch });
+    expect(await ok.send([ev('game_start')])).toBe(true);
+    expect(calls[0]).toMatchObject({ method: 'POST', headers: { 'Content-Type': 'text/plain' }, credentials: 'omit', keepalive: true });
+    const bad = new AnalisaSink({ siteKey: 'pk', page, fetchFn: (async () => { throw new Error('rede'); }) as unknown as typeof fetch });
+    expect(await bad.send([ev('game_start')])).toBe(false);
   });
 });

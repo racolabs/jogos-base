@@ -1,2 +1,2 @@
 export * from './metrics.ts';
-export { ConsoleSink, HttpSink, NullSink, type HttpSinkDeps } from './sinks.ts';
+export { ANALISA_ENDPOINT, AnalisaSink, ConsoleSink, HttpSink, NullSink, type AnalisaSinkOptions, type HttpSinkDeps } from './sinks.ts';
