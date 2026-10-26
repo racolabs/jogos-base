@@ -11,19 +11,19 @@ describe('Mais jogos', () => {
     render(<MoreGames lang="en" current="sudoku" onOpen={onOpen} />);
     const nav = screen.getByRole('navigation', { name: 'More RacoLabs games' });
     const links = [...nav.querySelectorAll('a')];
-    expect(links.map((a) => a.querySelector('.rl-more__name')?.textContent)).toEqual(['Dobra', 'Solitaire']);
+    expect(links.map((a) => a.querySelector('.rl-more__name')?.textContent)).toEqual(['Dobra', 'Solitaire', 'Mahjong']);
     expect(screen.getByRole('link', { name: 'Solitaire' })).toBeTruthy();
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['https://dobra.racolabs.app/en/', 'https://paciencia.racolabs.app/en/']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['https://dobra.racolabs.app/en/', 'https://paciencia.racolabs.app/en/', 'https://mahjong.racolabs.app/en/']);
     expect(links.every((a) => a.getAttribute('target') === '_blank')).toBe(true);
     fireEvent.click(links[1]!);
     expect(onOpen).toHaveBeenCalledWith('paciencia');
   });
 
-  it('o catálogo tem os três jogos no ar', () => {
-    expect(GAMES.map((g) => g.id)).toEqual(['dobra', 'paciencia', 'sudoku']);
+  it('o catálogo tem os jogos no ar', () => {
+    expect(GAMES.map((g) => g.id)).toEqual(['dobra', 'paciencia', 'sudoku', 'mahjong']);
     for (const g of GAMES) {
       render(<MoreGames lang="pt" current={g.id} />);
-      expect(screen.getByRole('navigation', { name: 'Mais jogos da RacoLabs' }).querySelectorAll('a')).toHaveLength(2);
+      expect(screen.getByRole('navigation', { name: 'Mais jogos da RacoLabs' }).querySelectorAll('a')).toHaveLength(GAMES.length - 1);
       cleanup();
     }
   });

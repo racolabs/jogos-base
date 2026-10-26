@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrast } from './contrast.ts';
-import { DOBRA, DOBRA_TILES, LARGE_TEXT, ON_GOLD, PACIENCIA, SHELL, SUDOKU, themeCss, TYPE_SCALE, type Palette } from './tokens.ts';
+import { DOBRA, DOBRA_TILES, LARGE_TEXT, ON_GOLD, MAHJONG, PACIENCIA, SHELL, SUDOKU, themeCss, TYPE_SCALE, type Palette } from './tokens.ts';
 
 const AA = 4.5;
 const AA_LARGE = 3;
@@ -19,7 +19,7 @@ function shellPairs(p: Palette): [string, string, string][] {
 }
 
 describe('contraste AA nos dois temas', () => {
-  for (const theme of [DOBRA, PACIENCIA, SUDOKU]) {
+  for (const theme of [DOBRA, PACIENCIA, SUDOKU, MAHJONG]) {
     for (const mode of ['light', 'dark'] as const) {
       it(`${theme.id} ${mode === 'light' ? 'claro' : 'escuro'}`, () => {
         for (const [name, fg, bg] of shellPairs(theme[mode])) {
@@ -49,6 +49,13 @@ describe('contraste AA nos dois temas', () => {
       }
       expect(contrast(p.pencil!, p.paper!), 'anotação').toBeGreaterThanOrEqual(AA);
       expect(contrast(p.err!, p['err-bg']!), 'erro').toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  it('desenhos das peças e texto na mesa do Mahjong', () => {
+    for (const p of [MAHJONG.light, MAHJONG.dark]) {
+      for (const c of ['dot-blue', 'dot-red', 'dot-green', 'bam-dark'] as const) expect(contrast(p[c]!, p.tile!), c).toBeGreaterThanOrEqual(AA_LARGE);
+      expect(contrast(p['table-ink']!, p.table!), 'texto na mesa').toBeGreaterThanOrEqual(AA);
     }
   });
 
