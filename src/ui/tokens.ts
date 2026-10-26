@@ -142,6 +142,50 @@ export const SUDOKU: Theme = {
   fonts: { ui: FIGTREE, display: "'Bricolage Grotesque', " + FIGTREE },
 };
 
+/** Mahjong, direção "Jade": mesa verde-água, peças de marfim em relevo, dourado só para prêmio. */
+export const MAHJONG: Theme = {
+  id: 'mahjong',
+  light: {
+    ...SHELL.light,
+    ground: '#EEF3F0',
+    'surface-2': '#DFE8E3',
+    line: '#CFDAD4',
+    muted: '#55616A',
+    table: '#165B57',
+    'table-2': '#1D6E69',
+    'table-ink': '#F2F7F5',
+    tile: '#FBF7EC',
+    'tile-edge': '#D9CDB1',
+    'tile-side': '#B9A983',
+    'dot-blue': '#2457C5',
+    'dot-red': '#C4302B',
+    'dot-green': '#13805B',
+    'bam-dark': '#0B5C40',
+    select: '#2F6BFF',
+  },
+  dark: {
+    ...SHELL.dark,
+    ground: '#0F1715',
+    surface: '#18221F',
+    'surface-2': '#22302B',
+    line: '#2E3B37',
+    ink: '#EEF2F0',
+    muted: '#A2B1AB',
+    table: '#0D3D3A',
+    'table-2': '#12504C',
+    'table-ink': '#EAF3F0',
+    tile: '#F1EBDC',
+    'tile-edge': '#CDBF9F',
+    'tile-side': '#9E8E69',
+    'dot-blue': '#2457C5',
+    'dot-red': '#C4302B',
+    'dot-green': '#13805B',
+    'bam-dark': '#0B5C40',
+    select: '#7EA2FF',
+  },
+  fonts: { ui: FIGTREE, display: "'Young Serif', Georgia, 'Times New Roman', serif" },
+};
+
 /** Escala de texto em px (normal). Letra grande multiplica por LARGE_TEXT. Nada abaixo de 14 px. */
 export const TYPE_SCALE = { screenTitle: 34, sheetTitle: 26, button: 19, body: 17, label: 15, caption: 14 } as const;
 export const LARGE_TEXT = 1.3;

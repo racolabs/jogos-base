@@ -17,6 +17,7 @@ export const GAMES: readonly GameInfo[] = [
   { id: 'dobra', url: 'https://dobra.racolabs.app', name: { pt: 'Dobra', en: 'Dobra' } },
   { id: 'paciencia', url: 'https://paciencia.racolabs.app', name: { pt: 'Paciência', en: 'Solitaire' } },
   { id: 'sudoku', url: 'https://sudoku.racolabs.app', name: { pt: 'Sudoku', en: 'Sudoku' } },
+  { id: 'mahjong', url: 'https://mahjong.racolabs.app', name: { pt: 'Mahjong', en: 'Mahjong' } },
 ];
 
 /** Miniatura de cada jogo, desenhada aqui (sem imagem de outro site: a CSP só aceita o próprio). As cores são do próprio jogo. */
@@ -39,6 +40,17 @@ function Art({ id }: { id: string }): ReactNode {
     return (
       <span style={{ ...box, background: '#1E5A4C' }}>
         <b style={{ width: 20, height: 28, borderRadius: 4, background: '#FBF8F1', color: '#C42F3A', font: '700 12px/1 Georgia, serif', display: 'grid', placeItems: 'center' }}>A♥</b>
+      </span>
+    );
+  }
+  if (id === 'mahjong') {
+    const tile = (x: number, y: number, ch: string, color: string): ReactNode => (
+      <b style={{ position: 'absolute', left: x, top: y, width: 16, height: 21, borderRadius: 3, background: '#FBF7EC', boxShadow: '1.5px 2px 0 #B9A983', color, font: '700 12px/21px serif', textAlign: 'center' }}>{ch}</b>
+    );
+    return (
+      <span style={{ ...box, background: '#165B57', position: 'relative' }}>
+        {tile(5, 11, '發', '#13805B')}
+        {tile(18, 7, '中', '#C4302B')}
       </span>
     );
   }
