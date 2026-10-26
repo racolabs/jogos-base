@@ -47,6 +47,12 @@ export const SHELL_CSS = `
 .rl-install__go:active { transform: translateY(2px); }
 .rl-install__close { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .rl-install__close svg { width: 18px; height: 18px; }
+.rl-more { display: flex; flex-direction: column; gap: 8px; }
+.rl-more__title { font-size: calc(13px * var(--fs)); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.rl-more__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.rl-more__game { display: flex; align-items: center; gap: 10px; background: var(--surface); color: var(--ink); border-radius: 16px; padding: 8px 12px 8px 8px; text-decoration: none; font-weight: 800; font-size: calc(16px * var(--fs)); min-width: 0; }
+.rl-more__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-more__game:active { transform: translateY(2px); }
 .rl-mcard { width: 100%; border: 0; background: var(--surface); color: var(--ink); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; text-align: left; font: inherit; }
 .rl-mcard:active { transform: translateY(2px); }
 .rl-mcard__top { display: flex; align-items: center; gap: 10px; }
