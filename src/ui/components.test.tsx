@@ -76,6 +76,17 @@ describe('Toast', () => {
     act(() => vi.advanceTimersByTime(1));
     expect(onDone).toHaveBeenCalledTimes(1);
   });
+
+  it('some no tempo mesmo com a tela redesenhando (ex.: relógio da partida)', () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    const { rerender } = render(<Toast message="Vire mais cartas" placement="top" onDone={() => onDone()} />);
+    for (let k = 0; k < 3; k++) {
+      act(() => vi.advanceTimersByTime(600));
+      rerender(<Toast message="Vire mais cartas" placement="top" onDone={() => onDone()} />);
+    }
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('Switch e Segmented', () => {

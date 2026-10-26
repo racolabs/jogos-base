@@ -1,6 +1,6 @@
 {
   "name": "jogos-base",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "description": "Base compartilhada dos jogos casuais. Instalada pelos jogos por tag git (github:racolabs/jogos-base#vX.Y.Z).",
