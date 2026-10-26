@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contrast } from './contrast.ts';
-import { DOBRA, DOBRA_TILES, LARGE_TEXT, ON_GOLD, PACIENCIA, SHELL, themeCss, TYPE_SCALE, type Palette } from './tokens.ts';
+import { DOBRA, DOBRA_TILES, LARGE_TEXT, ON_GOLD, PACIENCIA, SHELL, SUDOKU, themeCss, TYPE_SCALE, type Palette } from './tokens.ts';
 
 const AA = 4.5;
 const AA_LARGE = 3;
@@ -19,7 +19,7 @@ function shellPairs(p: Palette): [string, string, string][] {
 }
 
 describe('contraste AA nos dois temas', () => {
-  for (const theme of [DOBRA, PACIENCIA]) {
+  for (const theme of [DOBRA, PACIENCIA, SUDOKU]) {
     for (const mode of ['light', 'dark'] as const) {
       it(`${theme.id} ${mode === 'light' ? 'claro' : 'escuro'}`, () => {
         for (const [name, fg, bg] of shellPairs(theme[mode])) {
@@ -38,6 +38,17 @@ describe('contraste AA nos dois temas', () => {
       expect(contrast(p.red!, p.card!), 'copas e ouros').toBeGreaterThanOrEqual(AA);
       expect(contrast(p.black!, p.card!), 'espadas e paus').toBeGreaterThanOrEqual(AA);
       expect(contrast(p['felt-ink']!, p.felt!), 'texto no feltro').toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  it('números e anotações do Sudoku no papel e nas casas destacadas', () => {
+    for (const p of [SUDOKU.light, SUDOKU.dark]) {
+      for (const bg of ['paper', 'sel', 'peer', 'same'] as const) {
+        expect(contrast(p.given!, p[bg]!), `fixo em ${bg}`).toBeGreaterThanOrEqual(AA);
+        expect(contrast(p.pen!, p[bg]!), `jogador em ${bg}`).toBeGreaterThanOrEqual(AA_LARGE);
+      }
+      expect(contrast(p.pencil!, p.paper!), 'anotação').toBeGreaterThanOrEqual(AA);
+      expect(contrast(p.err!, p['err-bg']!), 'erro').toBeGreaterThanOrEqual(AA);
     }
   });
 

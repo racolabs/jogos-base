@@ -97,6 +97,51 @@ export const PACIENCIA: Theme = {
   fonts: { ui: FIGTREE, display: "'Fraunces', Georgia, 'Times New Roman', serif" },
 };
 
+/** Sudoku, direção "Caderno": papel creme, números do jogador em azul-tinta, anotações a lápis. */
+export const SUDOKU: Theme = {
+  id: 'sudoku',
+  light: {
+    ...SHELL.light,
+    ground: '#F3F1EA',
+    'surface-2': '#E8E4D8',
+    line: '#D8D3C4',
+    accent: '#2F5BEA',
+    paper: '#FFFDF7',
+    grid: '#D6CFBC',
+    'grid-strong': '#2A2B38',
+    given: '#1C1D2B',
+    pen: '#2F5BEA',
+    pencil: '#62646F',
+    sel: '#CFE0FF',
+    peer: '#EEF2FB',
+    same: '#DCE6FF',
+    err: '#C42F2F',
+    'err-bg': '#FBE3E3',
+    flash: '#FFE8A3',
+  },
+  dark: {
+    ...SHELL.dark,
+    ground: '#121520',
+    surface: '#1B1F2E',
+    'surface-2': '#262B3E',
+    line: '#33384D',
+    accent: '#7EA2FF',
+    paper: '#171B28',
+    grid: '#2E3448',
+    'grid-strong': '#8C93AD',
+    given: '#EEF0F7',
+    pen: '#8FB0FF',
+    pencil: '#9599AE',
+    sel: '#2C3D6E',
+    peer: '#1E2436',
+    same: '#263459',
+    err: '#FF8A8A',
+    'err-bg': '#3A2026',
+    flash: '#4A3F1E',
+  },
+  fonts: { ui: FIGTREE, display: "'Bricolage Grotesque', " + FIGTREE },
+};
+
 /** Escala de texto em px (normal). Letra grande multiplica por LARGE_TEXT. Nada abaixo de 14 px. */
 export const TYPE_SCALE = { screenTitle: 34, sheetTitle: 26, button: 19, body: 17, label: 15, caption: 14 } as const;
 export const LARGE_TEXT = 1.3;
