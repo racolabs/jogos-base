@@ -69,10 +69,14 @@ export interface ToastProps {
 
 export function Toast({ message, tone = 'default', placement = 'bottom', durationMs, onDone }: ToastProps) {
   const ms = durationMs ?? (placement === 'top' ? 1800 : 2400);
+  // onDone costuma ser uma função nova a cada render (ex.: jogo com relógio): guardar numa ref
+  // evita reiniciar o tempo e deixar o aviso preso na tela.
+  const done = useRef(onDone);
+  done.current = onDone;
   useEffect(() => {
-    const t = setTimeout(onDone, ms);
+    const t = setTimeout(() => done.current(), ms);
     return () => clearTimeout(t);
-  }, [ms, onDone, message]);
+  }, [ms, message]);
   return (
     <div role="status" className={['rl-toast', `rl-toast--${placement}`, tone === 'reward' ? 'rl-toast--reward' : ''].join(' ').trim()}>
       {message}
