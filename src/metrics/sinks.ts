@@ -59,3 +59,97 @@ export class HttpSink implements MetricsSink {
     }
   }
 }
+
+/** Ingestor padrão do Analisa (protocolo v1). */
+export const ANALISA_ENDPOINT = 'https://function-bun-production-3339.up.railway.app/v1/i';
+
+export interface AnalisaSinkOptions {
+  /** Chave pública do app no painel do Analisa (pk_...). */
+  siteKey: string;
+  endpoint?: string;
+  fetchFn?: typeof fetch;
+  now?: () => number;
+  /** Página atual (padrão: location). */
+  page?: () => { path: string; url: string; referrer: string; search: string };
+}
+
+type Flat = Record<string, string | number | boolean>;
+
+/**
+ * Envia para o Analisa (analytics sem cookie, protocolo v1): cada evento vira um evento do Analisa
+ * com as mesmas propriedades; o início de sessão também gera um page_view (origem, UTM).
+ * Trocável: é só mais um MetricsSink.
+ */
+export class AnalisaSink implements MetricsSink {
+  private readonly endpoint: string;
+  private readonly fetchFn: typeof fetch;
+  private readonly now: () => number;
+  private readonly page: NonNullable<AnalisaSinkOptions['page']>;
+
+  constructor(private readonly opts: AnalisaSinkOptions) {
+    this.endpoint = opts.endpoint ?? ANALISA_ENDPOINT;
+    this.fetchFn = opts.fetchFn ?? ((...args) => fetch(...args));
+    this.now = opts.now ?? Date.now;
+    this.page =
+      opts.page ??
+      (() => ({
+        path: typeof location !== 'undefined' ? location.pathname : '/',
+        url: typeof location !== 'undefined' ? location.origin + location.pathname : '',
+        referrer: typeof document !== 'undefined' ? document.referrer : '',
+        search: typeof location !== 'undefined' ? location.search : '',
+      }));
+  }
+
+  /** Corpo do envio (separado para teste). */
+  body(batch: MetricsEvent[]): string {
+    const page = this.page();
+    const events: Record<string, unknown>[] = [];
+    for (const e of batch) {
+      const props: Flat = { game: e.game, lang: e.lang };
+      for (const [k, v] of Object.entries(e.groups)) props[`ab_${k}`] = v;
+      Object.assign(props, e.data);
+      const base = { ts: e.at, anon_id: e.pid, session_id: e.sid, path: page.path };
+      if (e.type === 'session_start') {
+        const q = new URLSearchParams(page.search);
+        const utm: Record<string, string> = {};
+        for (const k of ['source', 'medium', 'campaign', 'term', 'content']) {
+          const v = q.get(`utm_${k}`);
+          if (v) utm[k] = v;
+        }
+        events.push({ ...base, id: `${e.id}.pv`, event: 'page_view', url: page.url, referrer: page.referrer, ...(Object.keys(utm).length ? { utm } : {}), props });
+      }
+      events.push({ ...base, id: e.id, event: e.type, props });
+    }
+    const screen =
+      typeof window !== 'undefined' && window.screen ? { w: window.screen.width, h: window.screen.height, density: window.devicePixelRatio || 1 } : undefined;
+    let tz: string | undefined;
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      tz = undefined;
+    }
+    return JSON.stringify({
+      site_key: this.opts.siteKey,
+      sent_at: this.now(),
+      context: { platform: 'web', framework: 'web', sdk: { name: 'jogos-base' }, locale: batch[0]?.lang === 'pt' ? 'pt-BR' : 'en', tz, screen },
+      batch: events,
+    });
+  }
+
+  async send(batch: MetricsEvent[]): Promise<boolean> {
+    if (!batch.length) return true;
+    try {
+      const res = await this.fetchFn(this.endpoint, {
+        method: 'POST',
+        // text/plain evita a pré-verificação de CORS (o Analisa aceita).
+        headers: { 'Content-Type': 'text/plain' },
+        body: this.body(batch),
+        keepalive: true,
+        credentials: 'omit',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+}

@@ -18,6 +18,8 @@ export type EventValue = number | boolean | string;
 
 export interface MetricsEvent {
   v: typeof METRICS_SCHEMA;
+  /** Id único do evento (o destino usa para não gravar duas vezes no reenvio). */
+  id: string;
   game: string;
   type: EventType;
   /** ms desde 1970 (relógio do aparelho). */
@@ -87,7 +89,7 @@ export class Metrics {
 
   track(type: EventType, data: Record<string, unknown> = {}): void {
     const { game, pid, lang, groups, now, maxQueue, batchSize } = this.opts;
-    this.queue.push({ v: METRICS_SCHEMA, game, type, at: now(), pid, sid: this.sid, lang, groups: { ...groups }, data: sanitizeData(data) });
+    this.queue.push({ v: METRICS_SCHEMA, id: randomSid(), game, type, at: now(), pid, sid: this.sid, lang, groups: { ...groups }, data: sanitizeData(data) });
     if (this.queue.length > maxQueue) this.queue.splice(0, this.queue.length - maxQueue);
     if (this.queue.length >= batchSize) void this.flush();
   }

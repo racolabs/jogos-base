@@ -18,7 +18,7 @@ export interface AdPolicy {
   childDirected: boolean;
 }
 
-export const DEFAULT_AD_POLICY: Readonly<AdPolicy> = Object.freeze({ nonPersonalized: true, childDirected: true });
+export const DEFAULT_AD_POLICY: Readonly<AdPolicy> = Object.freeze({ nonPersonalized: true, childDirected: false });
 
 export interface AdProvider {
   readonly id: string;
