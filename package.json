@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./ads": "./src/ads/index.ts",
     "./ads/guard": "./src/ads/guard.ts",
+    "./compliance": "./src/compliance/index.ts",
     "./config": "./src/config/index.ts",
     "./storage": "./src/storage/index.ts",
     "./i18n": "./src/i18n/index.ts",

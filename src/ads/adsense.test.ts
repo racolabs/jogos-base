@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FakeConsentProvider } from './consent.ts';
 import { ADSENSE_SCRIPT, adSenseFromEnv, AdSenseProvider, type AdBreakConfig } from './adsense.ts';
 
 /** Janela falsa: guarda o que vai para a fila do Google para o teste disparar os retornos. */
@@ -129,5 +130,73 @@ describe('AdSense (H5 Games Ads)', () => {
     expect(adSenseFromEnv({ VITE_ADSENSE_CLIENT: 'pub-123' })).toBeNull();
     const ads = adSenseFromEnv({ VITE_ADSENSE_CLIENT: 'ca-pub-6944803226650305', VITE_ADS_TEST: '1', VITE_ADSENSE_SLOT_HOME: '1234567890' });
     expect(ads).toBeInstanceOf(AdSenseProvider);
+  });
+});
+
+describe('AdSense + consentimento', () => {
+  const flag = () => (window as { adsbygoogle?: { requestNonPersonalizedAds?: number } }).adsbygoogle!.requestNonPersonalizedAds;
+  const adult = { nonPersonalized: false, childDirected: false };
+
+  it('padrão e sem consentimento: não personalizado, mesmo se o jogo permite personalizar', async () => {
+    const { win } = fakeWin();
+    await new AdSenseProvider({ client: 'ca-pub-1', win }).init(adult);
+    expect(flag()).toBe(1);
+  });
+
+  it('estado desconhecido ou recusado: não personalizado', async () => {
+    for (const s of ['unknown', 'non-personalized'] as const) {
+      delete (window as { adsbygoogle?: unknown }).adsbygoogle;
+      const { win } = fakeWin();
+      await new AdSenseProvider({ client: 'ca-pub-1', win, consent: new FakeConsentProvider(s) }).init(adult);
+      expect(flag()).toBe(1);
+    }
+  });
+
+  it('personalizado só com consentimento explícito E jogo que permite', async () => {
+    const { win } = fakeWin();
+    await new AdSenseProvider({ client: 'ca-pub-1', win, consent: new FakeConsentProvider('personalized') }).init(adult);
+    expect(flag()).toBe(0);
+  });
+
+  it('consentimento sozinho não basta: política padrão ou público infantil seguem não personalizados', async () => {
+    for (const policy of [{ nonPersonalized: true, childDirected: false }, { nonPersonalized: false, childDirected: true }]) {
+      delete (window as { adsbygoogle?: unknown }).adsbygoogle;
+      const { win } = fakeWin();
+      await new AdSenseProvider({ client: 'ca-pub-1', win, consent: new FakeConsentProvider('personalized') }).init(policy);
+      expect(flag()).toBe(1);
+    }
+  });
+
+  it('mudar a escolha vale para os próximos pedidos, nos dois sentidos', async () => {
+    const { win } = fakeWin();
+    const consent = new FakeConsentProvider();
+    await new AdSenseProvider({ client: 'ca-pub-1', win, consent }).init(adult);
+    expect(flag()).toBe(1);
+    await consent.showPrivacyOptions();
+    consent.respond('accept');
+    expect(flag()).toBe(0);
+    await consent.showPrivacyOptions();
+    consent.respond('decline');
+    expect(flag()).toBe(1);
+  });
+
+  it('CMP que falha no init não impede os anúncios', async () => {
+    const { win } = fakeWin();
+    const consent = new FakeConsentProvider('personalized');
+    consent.init = () => Promise.reject(new Error('cmp fora'));
+    await new AdSenseProvider({ client: 'ca-pub-1', win, consent }).init(adult);
+    expect(document.head.querySelector(`script[src^="${ADSENSE_SCRIPT}"]`)).not.toBeNull();
+  });
+
+  it('CMP que demora: o primeiro anúncio não espera; a flag é regravada quando o consentimento chega', async () => {
+    const { win } = fakeWin();
+    const consent = new FakeConsentProvider();
+    consent.init = () => new Promise(() => {}); // nunca responde
+    const ads = new AdSenseProvider({ client: 'ca-pub-1', win, consent });
+    await ads.init(adult); // volta já, sem esperar o CMP
+    expect(flag()).toBe(1);
+    expect(document.head.querySelector(`script[src^="${ADSENSE_SCRIPT}"]`)).not.toBeNull();
+    consent.set('personalized');
+    expect(flag()).toBe(0);
   });
 });
