@@ -2,25 +2,32 @@
  * Teste de arquitetura: nenhum jogo sorteia prêmio pago ou ganho por vídeo (caixa de recompensa,
  * roleta, gacha). O prêmio é sempre fixo e dito antes (decisão de 2026-10-25; ver o checklist
  * do template de PR). Os jogos chamam `assertNoPrizeDraw` num teste deles; a própria base usa o mesmo guarda.
- * Usa `node:fs`, por isso não entra em nenhum índice que vá para o navegador.
+ * Usa `node:fs`, por isso não vai para o navegador: importe só em teste (`jogos-base/compliance`).
  *
  * Como funciona (heurística, não prova):
- *  1. Vocabulário de sorteio de prêmio (lootbox, gacha, caixa de recompensa, roleta de prêmio...)
- *     em código ou texto de tela acusa sozinho.
+ *  1. Texto de tela (aspas, crases e texto de JSX) com vocabulário de sorteio de prêmio, em português
+ *     ou inglês ("gire a roleta", "spin the wheel", "prêmio surpresa", "random reward", "mystery box"...)
+ *     acusa sozinho. Nomes de variável e de função não entram: `openReward` e `RewardSpinner` passam.
  *  2. Um gatilho de vídeo premiado (`showRewarded`, `watchRewarded`...) ou de compra
- *     (`purchase`, `requestPurchase`, `PaymentRequest`, SDK de compra...) a poucas linhas de uma
- *     fonte de aleatoriedade (`Math.random`, `crypto.getRandomValues`, `randomInt`, `weightedPick`...)
- *     acusa como "premiado + sorteio" ou "compra + sorteio".
+ *     (`purchase(`, `requestPurchase`, `PaymentRequest`, SDK de compra...) a poucas linhas de uma
+ *     fonte de aleatoriedade (`Math.random`, `rng(`, `shuffle(`, `crypto.getRandomValues`, `weightedPick`...)
+ *     acusa como "premiado + sorteio" ou "compra + sorteio". Chamadas dentro de `${...}` de um
+ *     template literal contam como código.
  *
  * Limitações conhecidas:
  *  - Proximidade é por linhas (padrão 30) no mesmo arquivo, sem ler o fluxo de dados. Um sorteio
  *    ligado ao gatilho por outro arquivo, ou com nomes fora das listas abaixo, passa. É uma rede
  *    de segurança; a revisão do PR (checklist do template) continua sendo a defesa principal.
- *  - Falso positivo possível: embaralhar o baralho ou escolher o desafio logo ao lado de
- *    `showRewarded`. Resolva afastando os trechos ou liberando o arquivo em `allow`, com justificativa no PR.
+ *  - Falso positivo possível: embaralhar ou sortear a jogada (`rng(`, `shuffle(`) logo ao lado de
+ *    `showRewarded`, por exemplo reembaralhar depois de um vídeo que libera a ajuda. Resolva afastando os
+ *    trechos ou liberando o arquivo em `allow`, com justificativa no PR (o prêmio do vídeo tem de continuar fixo).
+ *  - Não há API de compra na base (sem StoreProvider por enquanto): o gatilho de compra usa nomes exatos
+ *    de funções e SDKs conhecidos. `buyTime()` e `checkoutLayout()` não contam; uma loja com outro nome passa.
  *  - Só lê código-fonte (.ts, .tsx, .js...). Não lê JSON de configuração nem texto de loja.
  *  - Os testes (*.test.*, *.spec.*, pastas test/tests/__tests__) ficam de fora por padrão.
- *  - Comentários são ignorados; texto entre aspas conta para o vocabulário, mas não para os gatilhos.
+ *  - Comentários são ignorados. O vocabulário vale só para texto de tela; os gatilhos, só para código.
+ *  - Regex literal com aspas dentro pode confundir a leitura das strings da linha; texto de JSX com
+ *    apóstrofo ("Don't") conta como string até o fim da linha, o que é inofensivo para o vocabulário.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -29,7 +36,7 @@ export type PrizeDrawKind = 'vocabulary' | 'rewarded-random' | 'purchase-random'
 
 export interface PrizeDrawViolation {
   file: string;
-  /** Linha do sinal mais forte: a palavra, ou a fonte de aleatoriedade. */
+  /** Linha do sinal mais forte: a frase, ou a fonte de aleatoriedade. */
   line: number;
   kind: PrizeDrawKind;
   /** Trecho que disparou o alerta (e, nos pares, o gatilho encontrado perto). */
@@ -49,22 +56,26 @@ export interface PrizeDrawOptions {
   includeTests?: boolean;
 }
 
-/** Palavras que só existem em mecânica de sorteio de prêmio. Procuradas no código e nos textos. */
+const S = String.raw`\s+`;
+const phrase = (...parts: string[]): RegExp => new RegExp(String.raw`(?<![\p{L}\p{N}])(?:${parts.join('|')})`, 'iu');
+
+/**
+ * Frases de sorteio de prêmio em texto de tela (português e inglês). Procuradas só no texto: aspas, crases
+ * e texto de JSX. Exigem espaço entre as palavras (ou a palavra sozinha), então identificadores não casam.
+ */
 export const PRIZE_DRAW_VOCABULARY: readonly RegExp[] = [
-  /loot[\s_-]?box(?:es)?/i,
-  /\bgacha/i,
-  /mystery[\s_-]?(?:box|chest|crate)/i,
-  /blind[\s_-]?box/i,
-  /(?:prize|reward)[\s_-]?(?:draw|wheel|roulette|spin|raffle|lottery)/i,
-  /(?:draw|spin|open)[\s_-]?(?:the[\s_-]?)?(?:prize|reward)s?\b/i,
-  /slot[\s_-]?machine/i,
-  /wheel[\s_-]?of[\s_-]?fortune/i,
-  /\braffle\b/i,
-  /caixa[\s_-]?(?:de[\s_-]?)?(?:recompensa|pr[eê]mio|surpresa|misteriosa)s?/i,
-  /roleta[\s_-]?(?:de[\s_-]?)?(?:pr[eê]mio|recompensa|sorte)s?/i,
-  /sorteio[\s_-]?(?:de[\s_-]?)?(?:pr[eê]mio|recompensa|brinde)s?/i,
-  /(?:sortear|girar)[\s_-]?(?:o[\s_-]?)?(?:pr[eê]mio|recompensa)s?/i,
-  /ba[uú][\s_-]?(?:de[\s_-]?)?(?:recompensa|pr[eê]mio|surpresa)s?/i,
+  phrase(String.raw`loot${S}?box`, String.raw`gacha(?![\p{L}])`, String.raw`blind${S}box`, String.raw`slot${S}machine`),
+  phrase(String.raw`mystery${S}(?:box|chest|crate|prize|reward)`, String.raw`surprise${S}(?:box|prize|reward|chest)`),
+  phrase(String.raw`random${S}(?:reward|prize|drop|gift)s?`, String.raw`(?:reward|prize)${S}(?:draw|wheel|roulette|raffle|lottery)`),
+  phrase(String.raw`(?:spin|turn)${S}(?:the${S})?(?:wheel|roulette)`, String.raw`spin${S}(?:to${S}win|for${S}(?:a${S})?(?:prize|reward))`),
+  phrase(String.raw`(?:open|pick)${S}(?:the${S}|a${S})?(?:mystery|reward|prize|loot|surprise)${S}(?:box|chest|crate)`),
+  phrase(String.raw`wheel${S}of${S}fortune`, String.raw`raffle(?![\p{L}])`, String.raw`prize${S}draw`),
+  phrase(String.raw`caixa${S}(?:de${S})?(?:recompensa|pr[eê]mio|surpresa)s?`, String.raw`caixa${S}misteriosa`),
+  phrase(String.raw`ba[uú]${S}(?:de${S})?(?:recompensa|pr[eê]mio|surpresa)s?`),
+  phrase(String.raw`pr[eê]mio${S}(?:surpresa|aleat[oó]rio|misterioso)`, String.raw`recompensa${S}(?:aleat[oó]ria|surpresa|misteriosa)`),
+  phrase(String.raw`(?:gire|girar|giro|rode|rodar)${S}(?:a${S}|na${S})?roleta`, String.raw`roleta${S}(?:de${S})?(?:pr[eê]mio|recompensa|sorte)s?`),
+  phrase(String.raw`sorteio${S}(?:de${S})?(?:pr[eê]mio|recompensa|brinde)s?`, String.raw`(?:sortear|sorteie)${S}(?:o${S}|um${S})?(?:pr[eê]mio|recompensa)s?`),
+  phrase(String.raw`gire${S}e${S}ganhe`),
 ];
 
 /** Vídeo premiado: o jogador assiste e "ganha". Procurado só no código (fora de aspas e comentários). */
@@ -77,12 +88,13 @@ export const REWARDED_TRIGGERS: readonly RegExp[] = [
   /\brewardedAd\b/i,
 ];
 
-/** Compra: dinheiro vira acesso ao sorteio. Procurado só no código. */
+/**
+ * Compra: dinheiro vira acesso ao sorteio. Procurado só no código. A base não tem API de compra ainda,
+ * então são nomes exatos (sem `\w*` no fim): `buyTime()` e `checkoutLayout()` não casam.
+ */
 export const PURCHASE_TRIGGERS: readonly RegExp[] = [
-  /\b(?:purchase|buy|checkout)\w*\s*\(/i,
-  /\brequestPurchase\b/,
-  /\brestorePurchases?\b/,
-  /\bonPurchase\w*\b/,
+  /\b(?:purchase|purchaseProduct|purchaseItem|requestPurchase|buyProduct|buyItem|launchBillingFlow|initiateCheckout|createCheckoutSession|restorePurchases?)\s*\(/,
+  /\bonPurchase(?:Complete|Success|d)?\b/,
   /\bPaymentRequest\b/,
   /\bgetDigitalGoodsService\b/,
   /\bInAppPurchases?\b/,
@@ -90,13 +102,17 @@ export const PURCHASE_TRIGGERS: readonly RegExp[] = [
   /\bBillingClient\b/,
 ];
 
-/** Aleatoriedade. Procurada só no código. */
+/** Aleatoriedade, inclusive o gerador injetado nos jogos (`rng`). Procurada só no código. */
 export const RANDOM_SOURCES: readonly RegExp[] = [
   /\bMath\.random\b/,
   /\bcrypto\.getRandomValues\b/,
   /\bgetRandomValues\s*\(/,
   /\brandomInt\s*\(/,
   /\brandomBytes\s*\(/,
+  /\brng\s*\(/,
+  /\bseededRandom\w*/,
+  /\bdailyRandom\w*/,
+  /\bshuffle(?:d|Array|Cards?|Deck|Tiles?|InPlace)?\s*\(/,
   /\brandom(?:Item|Element|Choice|Pick|Prize|Reward|Weighted)\w*\s*\(/i,
   /\b(?:pickRandom|weightedPick|weightedRandom|weightedChoice|rollTable|lootTable|dropTable|prizeTable|rewardTable)\w*/i,
   /\b(?:rollDice|rollPrize|rollReward|spinWheel|spinRoulette)\w*\s*\(/i,
@@ -109,42 +125,81 @@ const IGNORE_AT_ROOT = ['dist', 'build', 'coverage', '.claude', 'android', 'ios'
 const TEST_DIRS = ['test', 'tests', '__tests__'];
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
-/** Só as quebras de linha de um trecho: ao remover texto, os números de linha dos próximos não mudam. */
-const keepNewlines = (text: string): string => text.replace(/[^\n]/g, '');
+const BLANK = '\u0001';
 
-/**
- * Remove comentários (mantendo quebras de linha). Com `blank`, esvazia também o miolo das strings,
- * para que texto de tela não conte como código.
- */
-function clean(code: string, blank: boolean): string {
-  let out = '';
-  let i = 0;
-  while (i < code.length) {
-    const c = code[i] as string;
-    const n = code[i + 1];
-    if (c === '/' && n === '/') {
-      while (i < code.length && code[i] !== '\n') i++;
-    } else if (c === '/' && n === '*') {
-      const end = code.indexOf('*/', i + 2);
-      const stop = end < 0 ? code.length : end + 2;
-      out += ' ' + keepNewlines(code.slice(i, stop));
-      i = stop;
-    } else if (c === '"' || c === "'" || c === '`') {
-      let j = i + 1;
-      while (j < code.length && code[j] !== c) {
-        if (code[j] === '\\') j++;
-        else if (code[j] === '\n' && c !== '`') break;
-        j++;
-      }
-      const piece = code.slice(i, j + 1);
-      out += blank ? c + keepNewlines(piece) + c : piece;
-      i = j + 1;
-    } else {
-      out += c;
-      i++;
+interface Lexed {
+  /** Código: comentários e miolo de strings viram espaço; chamadas dentro de `${...}` ficam. Mesmo tamanho e mesmas linhas do original. */
+  code: string;
+  /** Texto de tela: miolo de strings e crases e texto de JSX; o resto vira \u0001. Mesmo tamanho e mesmas linhas do original. */
+  text: string;
+}
+
+/** Separa código e texto de tela, preservando posições e quebras de linha. */
+function lex(src: string): Lexed {
+  const len = src.length;
+  const code = new Array<string>(len);
+  const text = new Array<string>(len);
+  const put = (k: number, asCode: boolean, asText: boolean): void => {
+    const ch = src[k] as string;
+    if (ch === '\n') {
+      code[k] = '\n';
+      text[k] = '\n';
+      return;
     }
+    code[k] = asCode ? ch : ' ';
+    text[k] = asText ? ch : BLANK;
+  };
+  let i = 0;
+  const scanCode = (insideBraces: boolean): void => {
+    let depth = 0;
+    while (i < len) {
+      const c = src[i] as string;
+      const n = src[i + 1];
+      if (c === '/' && n === '/') {
+        while (i < len && src[i] !== '\n') put(i++, false, false);
+      } else if (c === '/' && n === '*') {
+        const end = src.indexOf('*/', i + 2);
+        const stop = end < 0 ? len : end + 2;
+        while (i < stop) put(i++, false, false);
+      } else if (c === '"' || c === "'") {
+        put(i++, true, false);
+        while (i < len && src[i] !== c && src[i] !== '\n') {
+          if (src[i] === '\\' && i + 1 < len) put(i++, false, true);
+          put(i++, false, true);
+        }
+        if (i < len && src[i] === c) put(i++, true, false);
+      } else if (c === '`') {
+        put(i++, true, false);
+        while (i < len && src[i] !== '`') {
+          if (src[i] === '\\' && i + 1 < len) {
+            put(i++, false, true);
+            put(i++, false, true);
+          } else if (src[i] === '$' && src[i + 1] === '{') {
+            put(i++, false, false);
+            put(i++, true, false);
+            scanCode(true); // a chamada dentro do ${...} é código e não some na limpeza
+          } else put(i++, false, true);
+        }
+        if (i < len) put(i++, true, false);
+      } else if (insideBraces && c === '}' && depth === 0) {
+        put(i++, true, false);
+        return;
+      } else {
+        if (c === '{') depth++;
+        else if (c === '}') depth--;
+        put(i++, true, false);
+      }
+    }
+  };
+  scanCode(false);
+  // Texto de JSX: >texto< com letras, sem chaves. Procurado no código já sem strings nem comentários.
+  const codeText = code.join('');
+  for (const m of codeText.matchAll(/>([^<>{}=;]*\p{L}[^<>{}=;]*)</gu)) {
+    const start = m.index + 1;
+    const end = start + (m[1] as string).length;
+    for (let k = start; k < end; k++) if (src[k] !== '\n') text[k] = src[k] as string;
   }
-  return out;
+  return { code: codeText, text: text.join('') };
 }
 
 const lineAt = (text: string, index: number): number => 1 + (text.slice(0, index).match(/\n/g)?.length ?? 0);
@@ -166,10 +221,10 @@ function hits(code: string, patterns: readonly RegExp[]): Hit[] {
 /** Procura sorteio de prêmio pago ou por vídeo num texto de código-fonte. */
 export function findPrizeDrawInSource(source: string, file = '<memória>', window = DEFAULT_WINDOW): PrizeDrawViolation[] {
   const found: PrizeDrawViolation[] = [];
-  for (const h of hits(clean(source, false), PRIZE_DRAW_VOCABULARY)) {
-    found.push({ file, line: h.line, kind: 'vocabulary', match: h.text });
+  const { code, text } = lex(source);
+  for (const h of hits(text, PRIZE_DRAW_VOCABULARY)) {
+    found.push({ file, line: h.line, kind: 'vocabulary', match: h.text.replace(/\s+/g, ' ') });
   }
-  const code = clean(source, true);
   const randoms = hits(code, RANDOM_SOURCES);
   if (randoms.length > 0) {
     const pairs: [PrizeDrawKind, Hit[]][] = [
@@ -225,10 +280,10 @@ export function assertNoPrizeDraw(root: string, opts: PrizeDrawOptions = {}): vo
   const bad = findPrizeDrawViolations(root, opts);
   if (bad.length === 0) return;
   const why = {
-    vocabulary: 'palavra de sorteio de prêmio',
+    vocabulary: 'texto de tela de sorteio',
     'rewarded-random': 'vídeo premiado ligado a sorteio',
     'purchase-random': 'compra ligada a sorteio',
   } as const;
   const list = bad.map((v) => `  ${v.file}:${v.line}  ${why[v.kind]}: ${v.match}`).join('\n');
-  throw new Error(`Sorteio de prêmio pago ou por vídeo não é permitido; o prêmio é fixo e dito antes:\n${list}`);
+  throw new Error(`Prêmio pago ou por vídeo não pode ser sorteado; o prêmio é fixo e dito antes:\n${list}`);
 }
