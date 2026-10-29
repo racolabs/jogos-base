@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.1
+
+Ajuste do módulo `seo` para os jogos que adotaram a 0.12.0 sem regressão de SEO. Tudo é opção de `SeoGame`; sem elas o resultado é o mesmo da 0.12.0. (Refs #28)
+
+- `defaultLocale`: idioma do `hreflang="x-default"` (padrão `'en'`). Os jogos RacoLabs devem passar `'pt'`.
+- `langTags`: tag BCP 47 por idioma (`{ pt: 'pt-BR', en: 'en-US' }`), usada em `<html lang>`, `hreflang` (head e sitemap) e `og:locale` (`pt_BR`/`en_US`). A URL continua `/pt/` e `/en/`.
+- `intro` (parágrafo de introdução) e `links` (`{ text, href }`, ex.: privacidade, exigida para o AdSense) por idioma, no HTML pré-renderizado, escapados. `href` só aceita `/caminho` ou https. A variação pode ter `intro` própria.
+- `heading`: título visível (`<h1>`) da página inicial por idioma (ex.: "Paciência online grátis"); padrão é o nome do jogo. O nome em JSON-LD e Open Graph não muda.
+- `extraPages` (`{ paths: { pt, en } }`): páginas geradas por fora (ex.: `/pt/privacidade/`) entram no `sitemap.xml` com `hreflang` e `x-default` corretos. Novas funções `extraEntriesFor` e `langTagOf`; `sitemapXml` aceita qualquer `SitemapEntry`.
+
 ## 0.12.0
 
 - Módulo `seo` (`jogos-base/seo`): páginas pré-renderizadas por idioma e variação com título, descrição e "Como jogar" no HTML inicial, `canonical`, `hreflang` pt/en/x-default, Open Graph e Twitter, `sitemap.xml`, `robots.txt` e dados estruturados (JSON-LD `VideoGame` + `WebApplication`, sem avaliação inventada). (#28)
