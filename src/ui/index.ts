@@ -7,3 +7,4 @@ export * from './install.tsx';
 export * from './missions.tsx';
 export { androidIntentUrl, appLinkProps, isAndroid, storeUrl, type AppLinkOptions } from './applink.ts';
 export { GAMES, MoreGames, type GameInfo } from './games.tsx';
+export { PrivacyChoicesButton, openPrivacyChoices, type PrivacyChoicesButtonProps } from './privacy.tsx';
