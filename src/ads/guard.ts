@@ -5,8 +5,8 @@
  * Usa `node:fs`, por isso fica fora do índice `jogos-base/ads` (que vai para o navegador).
  * Os jogos chamam `assertNoDirectAdSdk` num teste deles; a própria base usa o mesmo guarda.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 /**
  * Pacotes de SDK de anúncio que só um provider da base pode importar.
@@ -68,10 +68,12 @@ export interface AdSdkViolation {
 }
 
 export interface ScanOptions {
-  /** Pastas (relativas à raiz) onde um SDK é permitido, ex.: os providers da base em `src/ads`. */
+  /** Pastas (relativas à pasta varrida) onde um SDK é permitido, ex.: os providers da base em `src/ads`. */
   allow?: readonly string[];
-  /** Caminhos relativos à raiz ignorados, além dos padrões. */
+  /** Caminhos relativos à raiz do projeto ignorados, além dos padrões. */
   ignore?: readonly string[];
+  /** Raiz do projeto, de onde contam os ignorados. Padrão: a pasta com package.json mais próxima. */
+  projectRoot?: string;
   /** Extensões lidas. */
   extensions?: readonly string[];
 }
@@ -94,6 +96,13 @@ function matchesPackage(specifier: string): string | null {
 /** Só as quebras de linha de um trecho: ao remover texto, os números de linha dos próximos não mudam. */
 const keepNewlines = (text: string): string => text.replace(/[^\n]/g, '');
 
+/** Um `/` abre regex (e não divisão) quando vem depois de operador, abre-parêntese, vírgula etc. ou de `return`. */
+function startsRegex(before: string): boolean {
+  const tail = before.slice(-40).trimEnd();
+  if (tail === '') return true;
+  return /[(,=:[!&|?{};+\-*%<>~^]$/.test(tail) || /(?:^|[^\w$.])(?:return|typeof|case|in|of)$/.test(tail);
+}
+
 /** Troca comentários por espaço (mantendo quebras de linha); respeita strings, então `//` dentro de URL fica. */
 function stripComments(code: string): string {
   let out = '';
@@ -103,6 +112,18 @@ function stripComments(code: string): string {
     const n = code[i + 1];
     if (c === '/' && n === '/') {
       while (i < code.length && code[i] !== '\n') i++;
+    } else if (c === '/' && n !== '*' && startsRegex(out)) {
+      // Literal de regex (ex.: /https?:[/][/]/ ou /a\/\//): copia inteiro para o `//` dentro dele não virar comentário.
+      let j = i + 1;
+      let inClass = false;
+      while (j < code.length && code[j] !== '\n' && (inClass || code[j] !== '/')) {
+        if (code[j] === '\\') j++;
+        else if (code[j] === '[') inClass = true;
+        else if (code[j] === ']') inClass = false;
+        j++;
+      }
+      out += code.slice(i, j + 1);
+      i = j + 1;
     } else if (c === '/' && n === '*') {
       const end = code.indexOf('*/', i + 2);
       const stop = end < 0 ? code.length : end + 2;
@@ -125,23 +146,28 @@ function stripComments(code: string): string {
   return out;
 }
 
+const JOINED_BREAK = '\u0001';
+
 /** 'a' + 'b' vira 'ab', para pegar host montado por concatenação. */
 function foldConcatenation(code: string): string {
   let prev: string;
   let cur = code;
   do {
     prev = cur;
-    cur = cur.replace(/(['"`])\s*\+\s*(['"`])/g, (m) => keepNewlines(m));
+    // A quebra de linha engolida vira JOINED_BREAK: string com ' ou " não atravessa linha de verdade,
+    // mas a contagem de linhas segue certa.
+    cur = cur.replace(/(['"`])\s*\+\s*(['"`])/g, (m) => keepNewlines(m).replace(/\n/g, JOINED_BREAK));
   } while (cur !== prev);
   return cur;
 }
 
 const lineAt = (text: string, index: number, firstLine: number): number =>
-  firstLine + (text.slice(0, index).match(/\n/g)?.length ?? 0);
+  firstLine + (text.slice(0, index).match(/[\n\u0001]/g)?.length ?? 0);
 
 // from '...', import '...', import('...'), require('...'); o espaço entre as partes pode quebrar linha.
 const SPECIFIER_RE = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*(['"`])([^'"`\n]+)\1/g;
-const STRING_RE = /(['"`])((?:\\.|(?!\1)[^\\])*)\1/g;
+// Aspas simples e duplas não atravessam linha (um apóstrofo em texto JSX não engole o resto); crase pode.
+const STRING_RE = /`((?:\\.|[^\\`])*)`|'((?:\\.|[^\\'\n])*)'|"((?:\\.|[^\\"\n])*)"/g;
 
 function scanCode(raw: string, file: string, firstLine: number, found: AdSdkViolation[]): void {
   const code = foldConcatenation(stripComments(raw));
@@ -152,7 +178,7 @@ function scanCode(raw: string, file: string, firstLine: number, found: AdSdkViol
   // Endereço de rede: só vale string que é uma URL sozinha (script src, fetch, import por URL).
   // Uma política CSP lista hosts separados por espaço e não entra aqui.
   for (const m of code.matchAll(STRING_RE)) {
-    const value = (m[2] ?? '').replace(/\n/g, '');
+    const value = (m[1] ?? m[2] ?? m[3] ?? '').replace(/[\n\u0001]/g, '');
     if (/[ \t]/.test(value)) continue;
     const host = AD_SDK_SCRIPT_HOSTS.find((h) => value.includes(h));
     if (host) found.push({ file, line: lineAt(code, m.index, firstLine), target: host, kind: 'script' });
@@ -186,23 +212,35 @@ export function findAdSdkInSource(source: string, file = '<memória>'): AdSdkVio
   return found;
 }
 
-function* walk(root: string, dir: string, ignore: ReadonlySet<string>, ext: readonly string[]): Generator<string> {
+function* walk(projectRoot: string, dir: string, ignore: ReadonlySet<string>, ext: readonly string[]): Generator<string> {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
-    const rel = relative(root, full).split(sep).join('/');
-    if (IGNORE_ANYWHERE.includes(name) || ignore.has(rel)) continue;
-    if (statSync(full).isDirectory()) yield* walk(root, full, ignore, ext);
+    const fromProject = relative(projectRoot, full).split(sep).join('/');
+    if (IGNORE_ANYWHERE.includes(name) || ignore.has(fromProject)) continue;
+    if (statSync(full).isDirectory()) yield* walk(projectRoot, full, ignore, ext);
     else if (ext.some((e) => name.endsWith(e))) yield full;
   }
 }
 
-/** Varre `root` e devolve cada acesso direto a SDK de anúncio fora das pastas permitidas. */
+/** Raiz do projeto: a pasta com package.json mais próxima, de `root` para cima. Sem ela, o próprio `root`. */
+function findProjectRoot(root: string): string {
+  for (let dir = resolve(root); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+    if (dirname(dir) === dir) return resolve(root);
+  }
+}
+
+/**
+ * Varre `root` (ex.: `src`) e devolve cada acesso direto a SDK de anúncio fora das pastas permitidas.
+ * `build`, `dist`, `ios`, `android` etc. são ignorados só na raiz do projeto, não em `src/build`.
+ */
 export function findAdSdkViolations(root: string, opts: ScanOptions = {}): AdSdkViolation[] {
   const norm = (p: string): string => p.split('\\').join('/').replace(/\/+$/, '');
+  const projectRoot = resolve(opts.projectRoot ?? findProjectRoot(root));
   const ignore = new Set([...IGNORE_AT_ROOT, ...(opts.ignore ?? [])].map(norm));
   const allow = (opts.allow ?? []).map(norm);
   const out: AdSdkViolation[] = [];
-  for (const full of walk(root, root, ignore, opts.extensions ?? DEFAULT_EXT)) {
+  for (const full of walk(projectRoot, resolve(root), ignore, opts.extensions ?? DEFAULT_EXT)) {
     const rel = relative(root, full).split(sep).join('/');
     if (allow.some((a) => rel === a || rel.startsWith(`${a}/`))) continue;
     out.push(...findAdSdkInSource(readFileSync(full, 'utf8'), rel));

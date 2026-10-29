@@ -70,15 +70,51 @@ describe('guarda de SDK de anúncio', () => {
 
   it('ignora build/ios/android só na raiz; em subpastas lê', () => {
     const sdk = "import { AdMob } from '@capacitor-community/admob';";
-    const jogo = fakeGame({ 'build/a.ts': sdk, 'android/b.ts': sdk, 'ios/c.ts': sdk, 'dist/d.ts': sdk });
+    const jogo = fakeGame({ 'package.json': '{}', 'build/a.ts': sdk, 'android/b.ts': sdk, 'ios/c.ts': sdk, 'dist/d.ts': sdk });
     expect(findAdSdkViolations(jogo)).toEqual([]);
-    const fundo = fakeGame({ 'src/build/a.ts': sdk, 'src/android/b.ts': sdk, 'src/ios/c.ts': sdk, 'src/dist/d.ts': sdk });
+    const fundo = fakeGame({ 'package.json': '{}', 'src/build/a.ts': sdk, 'src/android/b.ts': sdk, 'src/ios/c.ts': sdk, 'src/dist/d.ts': sdk });
     expect(findAdSdkViolations(fundo).map((v) => v.file).sort()).toEqual([
       'src/android/b.ts',
       'src/build/a.ts',
       'src/dist/d.ts',
       'src/ios/c.ts',
     ]);
+  });
+
+  it('ignora build/ios/android na raiz do projeto, mesmo varrendo só src', () => {
+    const sdk = "import { AdMob } from '@capacitor-community/admob';";
+    const jogo = fakeGame({
+      'package.json': '{}',
+      'build/a.ts': sdk,
+      'ios/b.ts': sdk,
+      'src/main.ts': 'export {};',
+      'src/build/x.ts': sdk,
+      'src/ios/y.ts': sdk,
+    });
+    expect(findAdSdkViolations(join(jogo, 'src')).map((v) => v.file).sort()).toEqual(['build/x.ts', 'ios/y.ts']);
+    expect(() => assertNoDirectAdSdk(join(jogo, 'src'))).toThrow(/build\/x\.ts:1/);
+    expect(findAdSdkViolations(jogo).map((v) => v.file).sort()).toEqual(['src/build/x.ts', 'src/ios/y.ts']);
+  });
+
+  it('apóstrofo em texto JSX não engole a URL de anúncio mais abaixo', () => {
+    const tsx = [
+      "export const Tela = () => <p>Don't stop</p>;",
+      'const a = 1;',
+      'const b = 2;',
+      "const s = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';",
+    ].join('\n');
+    const v = findAdSdkInSource(tsx, 'Tela.tsx');
+    expect(v.filter((x) => x.kind === 'script').map((x) => x.line)).toEqual([4]);
+  });
+
+  it('regex literal com // não corta o resto da linha', () => {
+    const src = "const re = /https?:[/][/]x/; import('@capacitor-community/admob');\nconst r2 = /a\\/\\//.test(u); const g = window.googletag;";
+    const v = findAdSdkInSource(src, 'a.ts');
+    expect(v.map((x) => [x.line, x.target])).toEqual([
+      [1, '@capacitor-community/admob'],
+      [2, 'googletag'],
+    ]);
+    expect(findAdSdkInSource('const a = x / 2; // googletag')).toEqual([]);
   });
 
   it('não reprova host em meta CSP do index.html nem em comentário', () => {
