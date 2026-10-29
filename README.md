@@ -4,7 +4,7 @@ Código comum dos jogos casuais, publicado como pacote versionado. Cada jogo dep
 
 | Módulo | O que faz |
 | --- | --- |
-| `ads` | Interface `AdProvider` com implementações trocáveis (AdMob, AdSense/H5, portais, sem anúncio), travas de intersticial e controle do premiado |
+| `ads` | Interface `AdProvider` com implementações trocáveis (AdMob, AdSense/H5, portais, sem anúncio), travas de intersticial e controle do premiado; `jogos-base/ads/guard` (`assertNoDirectAdSdk`) falha o teste do jogo que importar SDK de anúncio direto |
 | `config` | Configuração remota em JSON servida pelo próprio jogo, com sorteio de grupos para teste A/B |
 | `metrics` | Eventos sem cookie (sessão, partida, anúncio, compra) |
 | `i18n` | Português e inglês, idioma pela URL (`/pt`, `/en`) |
