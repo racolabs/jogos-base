@@ -9,6 +9,9 @@ export const DEFAULT_LANG: Lang = 'en';
 export function validateGame(game: SeoGame): string[] {
   const errors: string[] = [];
   if (!/^https:\/\/[^/\s]+$/.test(game.origin)) errors.push('origin deve ser https sem barra no fim');
+  if (game.shareImage !== undefined && !/^(?:\/(?!\/)\S*|https:\/\/\S+)$/.test(game.shareImage)) {
+    errors.push('shareImage deve começar com / ou ser um endereço https completo');
+  }
   const seen = new Set<string>();
   for (const v of game.variants ?? []) {
     if (!SLUG.test(v.slug)) errors.push(`slug inválido: ${v.slug}`);
@@ -58,4 +61,14 @@ export function pagesFor(game: SeoGame): SeoPage[] {
     }
   }
   return pages;
+}
+
+/**
+ * Avisos que não impedem o build, mas deixam o compartilhamento pior: imagem em SVG (ou ausente, o que gera SVG)
+ * não aparece no WhatsApp, Facebook e X. Cada jogo deve informar um PNG ou JPG de 1200x630.
+ */
+export function seoWarnings(game: SeoGame): string[] {
+  if (!game.shareImage) return [`${game.id}: sem shareImage, só há SVG gerado; informe um PNG 1200x630 (WhatsApp, Facebook e X ignoram SVG)`];
+  if (/\.svg(?:[?#].*)?$/i.test(game.shareImage)) return [`${game.id}: shareImage em SVG; use PNG ou JPG 1200x630 (WhatsApp, Facebook e X ignoram SVG)`];
+  return [];
 }

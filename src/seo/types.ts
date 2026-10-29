@@ -30,8 +30,8 @@ export interface SeoGame {
   genre: string;
   variants?: readonly SeoVariant[];
   /**
-   * Imagem de compartilhamento já pronta (PNG ou JPG, 1200x630), caminho a partir da raiz: `/og.png`.
-   * Sem ela, o build gera um SVG por página, que o Google lê mas WhatsApp, Facebook e X ignoram.
+   * Imagem de compartilhamento pronta: PNG ou JPG 1200x630, caminho com `/` no início (`/og.png`) ou endereço https completo.
+   * Sem ela, o build gera um SVG por página e avisa: WhatsApp, Facebook e X ignoram SVG, então cada jogo precisa de um PNG.
    */
   shareImage?: string;
   /** Cor da barra do navegador no celular. */

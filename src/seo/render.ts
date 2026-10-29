@@ -47,25 +47,48 @@ export interface RenderOptions {
   rootId?: string;
 }
 
+/** Acha o fim do `<div id=root>` contando divs aninhadas. Devolve [fim da tag de abertura, início do </div> de fechamento]. */
+function findRoot(html: string, rootId: string): [number, number] | null {
+  const open = new RegExp(`<div\\b(?=[^>]*\\bid=["']${rootId}["'])[^>]*>`, 'i').exec(html);
+  if (!open) return null;
+  const start = open.index + open[0].length;
+  const tag = /<(\/?)div\b[^>]*>/gi;
+  tag.lastIndex = start;
+  let depth = 1;
+  for (let m = tag.exec(html); m; m = tag.exec(html)) {
+    depth += m[1] ? -1 : 1;
+    if (depth === 0) return [start, m.index];
+  }
+  return null;
+}
+
+const attr = (tag: string, name: string): string | undefined => new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(tag)?.slice(1).find((v) => v !== undefined);
+
 /**
- * Pega o index.html do build do jogo e devolve o da página: troca <html lang>, tira title/description/canonical
- * que o modelo já tinha (evita duplicata), põe as tags novas no <head> e o texto dentro do elemento raiz.
+ * Pega o index.html do build do jogo e devolve o da página: troca <html lang>, tira title/description/canonical/hreflang/OG
+ * que o modelo já tinha (evita duplicata, em qualquer ordem de atributos), põe as tags novas no <head> e o texto dentro
+ * do elemento raiz. O theme-color do modelo fica; só é trocado (o sem `media`) se o jogo informar `themeColor`.
  */
 export function renderPage(template: string, game: SeoGame, page: SeoPage, { rootId = 'root' }: RenderOptions = {}): string {
   if (!/<\/head>/i.test(template)) throw new Error('modelo sem </head>');
-  const rootRe = new RegExp(`(<div\\s+id=["']${rootId}["'][^>]*>)([\\s\\S]*?)(</div>)`, 'i');
-  if (!rootRe.test(template)) throw new Error(`modelo sem <div id="${rootId}">`);
+  if (!findRoot(template, rootId)) throw new Error(`modelo sem <div id="${rootId}">`);
 
   let html = template
-    .replace(/<title>[\s\S]*?<\/title>\s*/i, '')
-    .replace(/<meta\s+name=["'](?:description|theme-color)["'][^>]*>\s*/gi, '')
-    .replace(/<link\b[^>]*>\s*/gi, (tag) => (/\brel=["']canonical["']/i.test(tag) || /\bhreflang=/i.test(tag) ? '' : tag))
-    .replace(/<meta\s+(?:property|name)=["'](?:og|twitter):[^"']*["'][^>]*>\s*/gi, '')
-    .replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>\s*/gi, '');
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>\s*/i, '')
+    .replace(/<meta\b[^>]*>\s*/gi, (tag) => {
+      const name = (attr(tag, 'name') ?? '').toLowerCase();
+      const property = (attr(tag, 'property') ?? '').toLowerCase();
+      if (name === 'description' || /^(?:og|twitter):/.test(name) || /^(?:og|twitter):/.test(property)) return '';
+      if (name === 'theme-color' && game.themeColor && attr(tag, 'media') === undefined) return '';
+      return tag;
+    })
+    .replace(/<link\b[^>]*>\s*/gi, (tag) => (attr(tag, 'rel')?.toLowerCase() === 'canonical' || /\bhreflang\s*=/i.test(tag) ? '' : tag))
+    .replace(/<script\b(?=[^>]*\btype\s*=\s*["']application\/ld\+json["'])[^>]*>[\s\S]*?<\/script>\s*/gi, '');
 
   html = /<html\b[^>]*>/i.test(html)
     ? html.replace(/<html\b([^>]*)>/i, (_m, attrs: string) => `<html${attrs.replace(/\slang=["'][^"']*["']/i, '')} lang="${page.lang}">`)
     : `<html lang="${page.lang}">${html}`;
   html = html.replace(/<\/head>/i, () => `    ${headTags(game, page)}\n  </head>`);
-  return html.replace(rootRe, (_m, open: string, _inner: string, close: string) => `${open}${bodyContent(page)}${close}`);
+  const [from, to] = findRoot(html, rootId)!;
+  return html.slice(0, from) + bodyContent(page) + html.slice(to);
 }

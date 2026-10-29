@@ -4,7 +4,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
-import { pagesFor } from './pages.ts';
+import { pagesFor, seoWarnings } from './pages.ts';
 import { renderPage, type RenderOptions } from './render.ts';
 import { shareImageSvg } from './share-image.ts';
 import { robotsTxt, sitemapXml } from './sitemap.ts';
@@ -26,6 +26,8 @@ export interface PrerenderResult {
   pages: SeoPage[];
   /** Arquivos escritos, relativos a outDir, com `/`. */
   files: string[];
+  /** Avisos do build (ex.: imagem de compartilhamento em SVG). Também vão para o console. */
+  warnings: string[];
 }
 
 /** Escreve páginas por idioma e variação, sitemap.xml, robots.txt e (sem `shareImage`) as imagens SVG. */
@@ -44,11 +46,13 @@ export function prerender(opts: PrerenderOptions): PrerenderResult {
   };
 
   const pages = pagesFor(game);
+  const warnings = seoWarnings(game);
+  for (const w of warnings) console.warn(`seo: aviso: ${w}`);
   for (const page of pages) {
     write(`${page.path.slice(1)}index.html`, renderPage(template, game, page, { rootId: opts.rootId }));
     if (!game.shareImage) write(page.image.slice(1), shareImageSvg(page, { name: game.name[page.lang], color: game.themeColor ?? '#1B1B3A' }));
   }
   write('sitemap.xml', sitemapXml(pages, opts.lastmod));
   write('robots.txt', robotsTxt(game.origin));
-  return { pages, files };
+  return { pages, files, warnings };
 }

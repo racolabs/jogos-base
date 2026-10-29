@@ -3,11 +3,14 @@ import type { SeoGame, SeoPage } from './types.ts';
 
 const abs = (origin: string, pathOrUrl: string) => (/^https?:\/\//.test(pathOrUrl) ? pathOrUrl : origin + pathOrUrl);
 
-/** Dados estruturados `VideoGame` (schema.org) da página. A variação aponta para o jogo em `isPartOf`. */
+/**
+ * Dados estruturados `VideoGame` + `WebApplication` (schema.org) da página. A variação aponta para o jogo em `isPartOf`.
+ * Sem `aggregateRating` nem `review`: avaliação só entra se for real e vier de dados reais, nunca inventada.
+ */
 export function videoGameJsonLd(game: SeoGame, page: SeoPage): Record<string, unknown> {
   const ld: Record<string, unknown> = {
     '@context': 'https://schema.org',
-    '@type': 'VideoGame',
+    '@type': ['VideoGame', 'WebApplication'],
     name: page.heading,
     description: page.description,
     url: page.url,
@@ -28,16 +31,18 @@ export function videoGameJsonLd(game: SeoGame, page: SeoPage): Record<string, un
 }
 
 /**
- * Confere o que o `VideoGame` precisa para o validador do schema.org e os leitores do Google:
+ * Confere o que `VideoGame` + `WebApplication` precisam para o validador do schema.org e os leitores do Google:
  * contexto, tipo, textos, endereços https e idioma conhecido. Vazio = válido.
- * (O Google não tem resultado rico próprio para jogo: vale o Schema Markup Validator.)
+ * (Dados válidos não garantem resultado rico: o Google só mostra o de app com avaliação real, que não inventamos.)
  */
 export function validateVideoGameJsonLd(ld: unknown): string[] {
   const errors: string[] = [];
   if (typeof ld !== 'object' || ld === null) return ['não é um objeto'];
   const o = ld as Record<string, unknown>;
   if (o['@context'] !== 'https://schema.org') errors.push('@context deve ser https://schema.org');
-  if (o['@type'] !== 'VideoGame') errors.push('@type deve ser VideoGame');
+  const types = Array.isArray(o['@type']) ? o['@type'] : [o['@type']];
+  if (!types.includes('VideoGame') || !types.includes('WebApplication')) errors.push('@type deve ser [VideoGame, WebApplication]');
+  if (o.aggregateRating !== undefined || o.review !== undefined) errors.push('aggregateRating/review só com avaliação real');
   for (const key of ['name', 'description', 'genre', 'applicationCategory', 'operatingSystem']) {
     if (typeof o[key] !== 'string' || !(o[key] as string).trim()) errors.push(`${key} ausente`);
   }

@@ -15,17 +15,21 @@
     "./metrics": "./src/metrics/index.ts",
     "./missions": "./src/missions/index.ts",
     "./seo": "./src/seo/index.ts",
-    "./seo/node": "./src/seo/node.ts"
+    "./seo/node": {
+      "types": "./lib/seo/node.d.ts",
+      "default": "./lib/seo/node.js"
+    }
   },
   "files": [
     "src",
+    "lib",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "tsc --noEmit && node scripts/build-seo-example.ts"
+    "build": "tsc --noEmit && tsc -p tsconfig.node.json && node scripts/build-seo-example.ts"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",

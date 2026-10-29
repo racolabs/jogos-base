@@ -2,10 +2,10 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXAMPLE_GAME, EXAMPLE_TEMPLATE } from './fixture.ts';
 import { prerender } from './node.ts';
-import { jsonForScript, pagesFor, renderPage, robotsTxt, shareImageSvg, sitemapXml, validateGame, validateVideoGameJsonLd, videoGameJsonLd, wrapText } from './index.ts';
+import { jsonForScript, pagesFor, renderPage, robotsTxt, seoWarnings, shareImageSvg, sitemapXml, validateGame, validateVideoGameJsonLd, videoGameJsonLd, wrapText } from './index.ts';
 
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html');
 const pages = pagesFor(EXAMPLE_GAME);
@@ -37,6 +37,11 @@ describe('páginas', () => {
     expect(errors).toContain('slug inválido: Ruim Slug');
     expect(errors).toContain('slug repetido: dificil');
     expect(() => pagesFor(bad)).toThrow(/SEO inválido/);
+    expect(validateGame({ ...EXAMPLE_GAME, shareImage: 'og.png' })).toEqual(['shareImage deve começar com / ou ser um endereço https completo']);
+    expect(validateGame({ ...EXAMPLE_GAME, shareImage: '//cdn.x/og.png' })).toHaveLength(1);
+    expect(validateGame({ ...EXAMPLE_GAME, shareImage: 'http://x.app/og.png' })).toHaveLength(1);
+    expect(validateGame({ ...EXAMPLE_GAME, shareImage: '/og.png' })).toEqual([]);
+    expect(validateGame({ ...EXAMPLE_GAME, shareImage: 'https://x.app/og.png' })).toEqual([]);
     expect(validateGame({ ...EXAMPLE_GAME, help: { pt: [], en: ['x'] } })).toEqual(['help.pt vazio']);
   });
 });
@@ -92,6 +97,48 @@ describe('HTML inicial (sem executar JS)', () => {
     expect(out).not.toContain('<i>');
   });
 
+  const THEME =
+    '<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="#123456">';
+  const withTheme = EXAMPLE_TEMPLATE.replace('<title>', `${THEME}<title>`);
+
+  it('mantém o theme-color com media do modelo quando o jogo não informa cor', () => {
+    const g = { ...EXAMPLE_GAME, themeColor: undefined };
+    const d = parse(renderPage(withTheme, g, pagesFor(g)[0]!));
+    expect([...d.querySelectorAll('meta[name=theme-color]')].map((m) => m.getAttribute('content'))).toEqual(['#ffffff', '#000000', '#123456']);
+  });
+
+  it('com themeColor no jogo troca só o theme-color sem media e mantém as variantes claro/escuro', () => {
+    const d = parse(renderPage(withTheme, EXAMPLE_GAME, pages[0]!));
+    const metas = [...d.querySelectorAll('meta[name=theme-color]')].map((m) => [m.getAttribute('content'), m.getAttribute('media')]);
+    expect(metas).toContainEqual(['#ffffff', '(prefers-color-scheme: light)']);
+    expect(metas).toContainEqual(['#000000', '(prefers-color-scheme: dark)']);
+    expect(metas.filter(([, media]) => media === null)).toEqual([['#1B1B3A', null]]);
+  });
+
+  it('tira description e OG do modelo em qualquer ordem de atributos', () => {
+    const t = EXAMPLE_TEMPLATE.replace('<title>', '<meta content="velha" name="description"><meta content="velho" property="og:title"><meta content="x" name="twitter:card"><title>');
+    const d = parse(renderPage(t, EXAMPLE_GAME, pages[0]!));
+    expect(d.querySelectorAll('meta[name=description]')).toHaveLength(1);
+    expect(d.querySelectorAll('meta[property="og:title"]')).toHaveLength(1);
+    expect(d.querySelectorAll('meta[name="twitter:card"]')).toHaveLength(1);
+    expect(d.querySelector('meta[name=description]')?.getAttribute('content')).toBe(pages[0]!.description);
+  });
+
+  it('aceita divs aninhadas dentro do #root e não deixa sobra', () => {
+    const t = EXAMPLE_TEMPLATE.replace('<div id="root"></div>', '<div id="root"><div class="splash"><div>carregando</div></div></div><footer>fim</footer>');
+    const out = renderPage(t, EXAMPLE_GAME, pages[0]!);
+    expect(out).not.toContain('carregando');
+    expect(out).not.toContain('splash');
+    const d = parse(out);
+    expect(d.querySelector('#root h1')).not.toBeNull();
+    expect(d.querySelector('body > footer')?.textContent).toBe('fim');
+  });
+
+  it('acha o #root com id em qualquer posição dos atributos', () => {
+    const t = EXAMPLE_TEMPLATE.replace('<div id="root">', '<div class="app" id="root" data-x="1">');
+    expect(parse(renderPage(t, EXAMPLE_GAME, pages[0]!)).querySelector('#root h1')).not.toBeNull();
+  });
+
   it('modelo sem raiz ou sem head dá erro claro', () => {
     expect(() => renderPage('<html><head></head><body></body></html>', EXAMPLE_GAME, pages[0]!)).toThrow(/id="root"/);
     expect(() => renderPage('<div id="root"></div>', EXAMPLE_GAME, pages[0]!)).toThrow(/head/);
@@ -108,8 +155,19 @@ describe('dados estruturados', () => {
     const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
     expect(scripts).toHaveLength(1);
     const ld = JSON.parse(scripts[0]!.textContent!);
-    expect(ld).toMatchObject({ '@type': 'VideoGame', name: 'Example', url: 'https://exemplo.racolabs.app/en/', inLanguage: 'en', genre: 'Puzzle' });
+    expect(ld).toMatchObject({ '@type': ['VideoGame', 'WebApplication'], applicationCategory: 'Game', name: 'Example', url: 'https://exemplo.racolabs.app/en/', inLanguage: 'en', genre: 'Puzzle' });
     expect(validateVideoGameJsonLd(ld)).toEqual([]);
+  });
+
+  it('nunca inventa avaliação', () => {
+    for (const p of pages) {
+      const ld = videoGameJsonLd(EXAMPLE_GAME, p);
+      expect(ld).not.toHaveProperty('aggregateRating');
+      expect(ld).not.toHaveProperty('review');
+      expect(ld.applicationCategory).toBe('Game');
+      expect(ld.operatingSystem).toBeTruthy();
+      expect(ld.offers).toMatchObject({ price: '0' });
+    }
   });
 
   it('variação aponta para o jogo em isPartOf', () => {
@@ -118,8 +176,9 @@ describe('dados estruturados', () => {
 
   it('o validador pega o que falta', () => {
     const ok = videoGameJsonLd(EXAMPLE_GAME, pages[0]!);
-    expect(validateVideoGameJsonLd({ ...ok, '@type': 'Game', name: '', url: 'http://x', inLanguage: 'fr', offers: { '@type': 'Offer', price: 'grátis', priceCurrency: 'r' } })).toEqual([
-      '@type deve ser VideoGame',
+    expect(validateVideoGameJsonLd({ ...ok, '@type': 'Game', aggregateRating: { ratingValue: 5 }, name: '', url: 'http://x', inLanguage: 'fr', offers: { '@type': 'Offer', price: 'grátis', priceCurrency: 'r' } })).toEqual([
+      '@type deve ser [VideoGame, WebApplication]',
+      'aggregateRating/review só com avaliação real',
       'name ausente',
       'url deve ser um endereço https',
       'inLanguage deve ser pt ou en',
@@ -183,6 +242,13 @@ describe('imagem de compartilhamento', () => {
     expect(d.documentElement.textContent).toContain('Hard Example');
   });
 
+  it('avisa quando a imagem é SVG ou não foi informada, e fica quieto com PNG', () => {
+    expect(seoWarnings(EXAMPLE_GAME)).toEqual([expect.stringContaining('sem shareImage')]);
+    expect(seoWarnings({ ...EXAMPLE_GAME, shareImage: '/og.svg' })).toEqual([expect.stringContaining('SVG')]);
+    expect(seoWarnings({ ...EXAMPLE_GAME, shareImage: 'https://x.app/og.SVG?v=2' })).toHaveLength(1);
+    expect(seoWarnings({ ...EXAMPLE_GAME, shareImage: '/og.png' })).toEqual([]);
+  });
+
   it('quebra o texto sem cortar palavra e põe reticências no excesso', () => {
     expect(wrapText('um dois tres quatro cinco', 10, 5)).toEqual(['um dois', 'tres', 'quatro', 'cinco']);
     expect(wrapText('um dois tres quatro cinco', 10, 2)).toEqual(['um dois', 'tres…']);
@@ -205,6 +271,15 @@ describe('prerender em disco', () => {
     );
     expect(readFileSync(join(dir, 'en', 'dificil', 'index.html'), 'utf8')).toBe(renderPage(EXAMPLE_TEMPLATE, EXAMPLE_GAME, page('/en/dificil/')));
     expect(readFileSync(join(dir, 'sitemap.xml'), 'utf8')).toBe(sitemapXml(pages, '2026-10-28'));
+  });
+
+  it('devolve os avisos e os mostra no console', () => {
+    dir = mkdtempSync(join(tmpdir(), 'seo-'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = prerender({ game: EXAMPLE_GAME, template: EXAMPLE_TEMPLATE, outDir: dir });
+    expect(out.warnings).toHaveLength(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('sem shareImage'));
+    warn.mockRestore();
   });
 
   it('com imagem pronta no jogo não gera SVG', () => {
