@@ -38,6 +38,11 @@ export function isIOS(env: InstallEnv): boolean {
   return /iPhone|iPad|iPod/i.test(env.userAgent) || (env.platform === 'MacIntel' && env.maxTouchPoints > 1);
 }
 
+/** Casca Windows (WebView2): ela acrescenta ` RacoLabsWindows/1` ao user agent. */
+export function isWindowsShell(env: InstallEnv): boolean {
+  return /\bRacoLabsWindows\//.test(env.userAgent);
+}
+
 /** Estado inicial, antes de o navegador mandar (ou não) o pedido de instalação. */
 export function initialInstallState(env: InstallEnv): InstallState {
   if (env.standalone) return 'installed';

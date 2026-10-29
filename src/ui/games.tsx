@@ -11,13 +11,15 @@ export interface GameInfo {
   id: string;
   url: string;
   name: { pt: string; en: string };
+  /** ID do produto na Microsoft Store (usado na casca Windows). */
+  storeId: string;
 }
 
 export const GAMES: readonly GameInfo[] = [
-  { id: 'dobra', url: 'https://dobra.racolabs.app', name: { pt: 'Dobra', en: 'Dobra' } },
-  { id: 'paciencia', url: 'https://paciencia.racolabs.app', name: { pt: 'Paciência', en: 'Solitaire' } },
-  { id: 'sudoku', url: 'https://sudoku.racolabs.app', name: { pt: 'Sudoku', en: 'Sudoku' } },
-  { id: 'mahjong', url: 'https://mahjong.racolabs.app', name: { pt: 'Mahjong', en: 'Mahjong' } },
+  { id: 'dobra', url: 'https://dobra.racolabs.app', name: { pt: 'Dobra', en: 'Dobra' }, storeId: '9P0D5TJNKXKR' },
+  { id: 'paciencia', url: 'https://paciencia.racolabs.app', name: { pt: 'Paciência', en: 'Solitaire' }, storeId: '9MV5FVBHZ79Z' },
+  { id: 'sudoku', url: 'https://sudoku.racolabs.app', name: { pt: 'Sudoku', en: 'Sudoku' }, storeId: '9NZ0HS8MVCMR' },
+  { id: 'mahjong', url: 'https://mahjong.racolabs.app', name: { pt: 'Mahjong', en: 'Mahjong' }, storeId: '9NZ2RT13G29P' },
 ];
 
 /** Miniatura de cada jogo, desenhada aqui (sem imagem de outro site: a CSP só aceita o próprio). As cores são do próprio jogo. */
