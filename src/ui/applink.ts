@@ -21,7 +21,13 @@ export function androidIntentUrl(url: string): string {
 
 /** Endereço da página do jogo na Microsoft Store, ou null se a URL não for de um jogo do catálogo. */
 export function storeUrl(url: string): string | null {
-  const game = GAMES.find((g) => new URL(g.url).origin === new URL(url).origin);
+  let origin: string;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return null; // URL relativa ou inválida: segue como link normal
+  }
+  const game = GAMES.find((g) => new URL(g.url).origin === origin);
   return game ? `ms-windows-store://pdp/?ProductId=${game.storeId}` : null;
 }
 

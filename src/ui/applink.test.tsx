@@ -89,4 +89,18 @@ describe('casca Windows', () => {
     expect(fireEvent.click(screen.getByText('Abrir'))).toBe(true);
     expect(go).not.toHaveBeenCalled();
   });
+
+  it('URL relativa ou inválida na casca: segue como link normal, sem erro', () => {
+    expect(storeUrl('/pt/')).toBeNull();
+    expect(storeUrl('')).toBeNull();
+    for (const href of ['/pt/', 'não é url']) {
+      const go = vi.fn();
+      const onOpen = vi.fn();
+      render(<a {...appLinkProps(href, { env: WINDOWS, go, onOpen })}>Abrir</a>);
+      expect(fireEvent.click(screen.getByText('Abrir'))).toBe(true);
+      expect(go).not.toHaveBeenCalled();
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      cleanup();
+    }
+  });
 });
