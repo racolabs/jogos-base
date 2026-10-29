@@ -187,4 +187,16 @@ describe('AdSense + consentimento', () => {
     await new AdSenseProvider({ client: 'ca-pub-1', win, consent }).init(adult);
     expect(document.head.querySelector(`script[src^="${ADSENSE_SCRIPT}"]`)).not.toBeNull();
   });
+
+  it('CMP que demora: o primeiro anúncio não espera; a flag é regravada quando o consentimento chega', async () => {
+    const { win } = fakeWin();
+    const consent = new FakeConsentProvider();
+    consent.init = () => new Promise(() => {}); // nunca responde
+    const ads = new AdSenseProvider({ client: 'ca-pub-1', win, consent });
+    await ads.init(adult); // volta já, sem esperar o CMP
+    expect(flag()).toBe(1);
+    expect(document.head.querySelector(`script[src^="${ADSENSE_SCRIPT}"]`)).not.toBeNull();
+    consent.set('personalized');
+    expect(flag()).toBe(0);
+  });
 });

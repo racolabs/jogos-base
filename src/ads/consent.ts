@@ -47,6 +47,9 @@ export class ConsentListeners {
     this.set.add(listener);
     return () => void this.set.delete(listener);
   }
+  clear(): void {
+    this.set.clear();
+  }
   emit(state: ConsentState): void {
     for (const l of [...this.set]) {
       try {

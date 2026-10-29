@@ -61,6 +61,10 @@ export class GoogleConsentProvider implements ConsentProvider {
   private current: ConsentState = 'unknown';
   private gdprApplies: boolean | undefined;
   private attached = false;
+  /** O CMP já respondeu ao menos uma vez (sabemos se há mensagem aplicável). */
+  private loaded = false;
+  private queuedReopen = false;
+  private readonly cancels = new Set<() => void>();
   private listenerId: number | undefined;
   private destroyed = false;
   private pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -91,9 +95,11 @@ export class GoogleConsentProvider implements ConsentProvider {
         done = true;
         clearTimeout(timer);
         off();
+        this.cancels.delete(finish);
         resolve(this.current);
       };
       const timer = setTimeout(finish, this.initTimeoutMs);
+      this.cancels.add(finish);
       // Qualquer primeiro sinal do CMP (escolha lida, formulário aberto) encerra a espera.
       const off = this.listeners.add(finish);
       this.onFirstEvent = finish;
@@ -104,45 +110,68 @@ export class GoogleConsentProvider implements ConsentProvider {
 
   async request(): Promise<ConsentState> {
     await this.init();
-    if (this.current !== 'unknown') return this.current;
+    if (this.current !== 'unknown' || this.destroyed) return this.current;
     return new Promise<ConsentState>((resolve) => {
       const done = () => {
         clearTimeout(timer);
         off();
+        this.cancels.delete(done);
         resolve(this.current);
       };
       const timer = setTimeout(done, this.requestTimeoutMs);
+      this.cancels.add(done);
       const off = this.listeners.add((s) => s !== 'unknown' && done());
     });
   }
 
+  /** true só com o CMP carregado e uma mensagem aplicável (GDPR, ou mensagem de revogação de fato disponível). */
   privacyOptionsAvailable(): boolean {
-    return typeof this.w.googlefc?.showRevocationMessage === 'function' || this.gdprApplies === true;
+    if (!this.loaded) return false;
+    return this.gdprApplies === true || typeof this.w.googlefc?.showRevocationMessage === 'function';
   }
 
+  /** true só se o formulário foi aberto agora. Se o Google ainda não está pronto, deixa o pedido na fila e devolve false. */
   async showPrivacyOptions(): Promise<boolean> {
+    if (!this.privacyOptionsAvailable()) return false; // nada para rever (CMP ausente ou fora da GDPR)
     const fc = this.w.googlefc;
     if (typeof fc?.showRevocationMessage === 'function') {
       fc.showRevocationMessage();
       return true;
     }
-    if (this.gdprApplies !== true) return false; // nada para rever (fora da GDPR ou CMP ausente)
-    // O Google ainda não terminou de carregar: pede para abrir assim que a API ficar pronta.
-    const g = (this.w.googlefc ??= {});
-    (g.callbackQueue ??= []).push({ CONSENT_API_READY: () => g.showRevocationMessage?.() });
-    return true;
+    if (!this.queuedReopen) {
+      this.queuedReopen = true;
+      const g = (this.w.googlefc ??= {});
+      (g.callbackQueue ??= []).push({
+        CONSENT_API_READY: () => {
+          this.queuedReopen = false;
+          if (!this.destroyed) g.showRevocationMessage?.();
+        },
+      });
+    }
+    return false;
   }
 
   subscribe(listener: ConsentListener): () => void {
     return this.listeners.add(listener);
   }
 
-  /** Para de ouvir o CMP e cancela esperas. Para trocar de provider ou nos testes. */
+  /** Para de ouvir o CMP e cancela esperas (timers, ouvintes e o listener do TCF). Para trocar de provider ou nos testes. */
   destroy(): void {
     this.destroyed = true;
     clearTimeout(this.pollTimer);
+    for (const cancel of [...this.cancels]) cancel(); // limpa os timers de init/request e resolve quem espera
+    this.cancels.clear();
+    this.listeners.clear();
+    this.removeTcfListener();
+  }
+
+  /** Sem listenerId ainda (o CMP não chamou de volta), a remoção acontece no primeiro retorno. */
+  private removeTcfListener(): void {
     const api = this.w.__tcfapi;
-    if (this.attached && api && this.listenerId !== undefined) api('removeEventListener', 2, () => {}, this.listenerId);
+    if (this.attached && api && this.listenerId !== undefined) {
+      api('removeEventListener', 2, () => {}, this.listenerId);
+      this.listenerId = undefined;
+    }
   }
 
   private startPolling(): void {
@@ -159,8 +188,10 @@ export class GoogleConsentProvider implements ConsentProvider {
   private attach(api: TcfApi): void {
     this.attached = true;
     api('addEventListener', 2, (data, success) => {
-      if (!success || !data || this.destroyed) return;
+      if (!success || !data) return;
       if (data.listenerId !== undefined) this.listenerId = data.listenerId;
+      if (this.destroyed) return void this.removeTcfListener();
+      this.loaded = true;
       if (typeof data.gdprApplies === 'boolean') this.gdprApplies = data.gdprApplies;
       // "cmpuishown": o formulário está na tela; a escolha vem em "useractioncomplete".
       const next = data.eventStatus === 'cmpuishown' ? this.current : stateFromTcData(data);

@@ -189,18 +189,33 @@ describe('GoogleConsentProvider (TCF)', () => {
     expect(seen).toEqual(['personalized', 'non-personalized']);
   });
 
-  it('googlefc ainda não pronto: entra na fila e abre quando o Google avisa', async () => {
+  it('googlefc ainda não pronto: enfileira, devolve false (não abriu) e abre quando o Google avisa', async () => {
     const { win, install, emit } = cmpWindow();
     install();
     const c = new GoogleConsentProvider({ win });
     const init = c.init();
     emit({ gdprApplies: true, eventStatus: 'cmpuishown' });
     await init;
-    expect(await c.showPrivacyOptions()).toBe(true);
+    expect(await c.showPrivacyOptions()).toBe(false);
+    expect(await c.showPrivacyOptions()).toBe(false); // não duplica na fila
+    expect(win.googlefc!.callbackQueue).toHaveLength(1);
     const show = vi.fn();
     win.googlefc!.showRevocationMessage = show;
     (win.googlefc!.callbackQueue![0] as { CONSENT_API_READY: () => void }).CONSENT_API_READY();
     expect(show).toHaveBeenCalledTimes(1);
+  });
+
+  it('CMP que nunca carrega: sem escolha para rever e showPrivacyOptions não diz que abriu nem enfileira', async () => {
+    const { win } = cmpWindow();
+    win.googlefc = { showRevocationMessage: vi.fn() }; // sobra de outro script; o TCF nunca respondeu
+    const c = new GoogleConsentProvider({ win, initTimeoutMs: 100 });
+    const p = c.init();
+    await vi.advanceTimersByTimeAsync(100);
+    await p;
+    expect(c.privacyOptionsAvailable()).toBe(false);
+    expect(await c.showPrivacyOptions()).toBe(false);
+    expect(win.googlefc.showRevocationMessage).not.toHaveBeenCalled();
+    c.destroy();
   });
 
   it('fora da GDPR: não personalizado e sem botão para rever', async () => {
@@ -223,5 +238,49 @@ describe('GoogleConsentProvider (TCF)', () => {
     await init;
     c.destroy();
     expect(calls).toContain('removeEventListener');
+  });
+
+  it('destroy sem listenerId ainda: limpa timers e ouvintes e remove o listener do TCF no primeiro retorno do CMP', async () => {
+    const { win, install, emit, calls } = cmpWindow();
+    install();
+    const c = new GoogleConsentProvider({ win });
+    const fn = vi.fn();
+    c.subscribe(fn);
+    const init = c.init(); // timer do init pendente
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    c.destroy();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await init).toBe('unknown');
+    expect(calls).not.toContain('removeEventListener'); // ainda sem listenerId
+    emit({ ...ACCEPT, listenerId: 9, eventStatus: 'tcloaded' }); // o CMP responde tarde
+    expect(calls).toContain('removeEventListener');
+    expect(fn).not.toHaveBeenCalled();
+    expect(c.state()).toBe('unknown');
+  });
+
+  it('destroy com request pendente (já com listenerId): resolve a espera, limpa o timer e remove o listener', async () => {
+    const { win, install, emit, calls } = cmpWindow();
+    install();
+    const c = new GoogleConsentProvider({ win });
+    const init = c.init();
+    emit({ gdprApplies: true, eventStatus: 'cmpuishown' });
+    await init;
+    const req = c.request();
+    await vi.advanceTimersByTimeAsync(0); // o request já está esperando a resposta
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    c.destroy();
+    expect(await req).toBe('unknown');
+    expect(vi.getTimerCount()).toBe(0);
+    expect(calls).toContain('removeEventListener');
+  });
+
+  it('destroy logo depois de request (antes de o init responder): não deixa timer novo', async () => {
+    const { win, install } = cmpWindow();
+    install();
+    const c = new GoogleConsentProvider({ win });
+    const req = c.request();
+    c.destroy();
+    expect(await req).toBe('unknown');
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

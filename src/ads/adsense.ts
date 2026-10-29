@@ -93,15 +93,9 @@ export class AdSenseProvider implements AdProvider {
       doc.head.appendChild(s);
     }
     w.adConfig({ preloadAdBreaks: 'on', sound: 'on', onReady: () => void (this.ready = true) });
-    // Depois do script: o CMP do Google chega junto com ele. Falha ou demora do CMP não trava os anúncios (seguem não personalizados).
-    if (consent) {
-      try {
-        await consent.init();
-      } catch {
-        // segue não personalizado
-      }
-      apply();
-    }
+    // O CMP do Google chega junto com o script. Não esperamos por ele: o primeiro anúncio sai já, não personalizado,
+    // e a flag é regravada (`apply`, via subscribe) quando o consentimento chegar. Falha do CMP segue não personalizado.
+    if (consent) void consent.init().then(apply, () => {});
   }
 
   async preload(_format: FullscreenFormat): Promise<void> {
