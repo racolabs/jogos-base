@@ -4,7 +4,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
-import { pagesFor, seoWarnings } from './pages.ts';
+import { extraEntriesFor, pagesFor, seoWarnings } from './pages.ts';
 import { renderPage, type RenderOptions } from './render.ts';
 import { shareImageSvg } from './share-image.ts';
 import { robotsTxt, sitemapXml } from './sitemap.ts';
@@ -30,7 +30,7 @@ export interface PrerenderResult {
   warnings: string[];
 }
 
-/** Escreve páginas por idioma e variação, sitemap.xml, robots.txt e (sem `shareImage`) as imagens SVG. */
+/** Escreve páginas por idioma e variação, sitemap.xml (com as `extraPages` do jogo), robots.txt e (sem `shareImage`) as imagens SVG. */
 export function prerender(opts: PrerenderOptions): PrerenderResult {
   const { game, outDir } = opts;
   const template = opts.template ?? (opts.templatePath ? readFileSync(opts.templatePath, 'utf8') : undefined);
@@ -52,7 +52,7 @@ export function prerender(opts: PrerenderOptions): PrerenderResult {
     write(`${page.path.slice(1)}index.html`, renderPage(template, game, page, { rootId: opts.rootId }));
     if (!game.shareImage) write(page.image.slice(1), shareImageSvg(page, { name: game.name[page.lang], color: game.themeColor ?? '#1B1B3A' }));
   }
-  write('sitemap.xml', sitemapXml(pages, opts.lastmod));
+  write('sitemap.xml', sitemapXml([...pages, ...extraEntriesFor(game)], opts.lastmod));
   write('robots.txt', robotsTxt(game.origin));
   return { pages, files, warnings };
 }

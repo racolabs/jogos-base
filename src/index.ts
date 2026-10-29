@@ -1,2 +1,2 @@
 /** Versão do pacote. Os jogos fixam a tag git correspondente (github:racolabs/jogos-base#vX.Y.Z). */
-export const VERSION = '0.12.0';
+export const VERSION = '0.12.1';

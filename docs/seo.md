@@ -18,12 +18,45 @@ prerender({ game, templatePath: 'dist/index.html', outDir: 'dist', lastmod: '202
 
 O Vite deve usar `base: '/'` (assets por caminho absoluto), porque as páginas ficam em pastas diferentes.
 
+## Configuração por jogo
+
+Todas opcionais; sem elas o resultado é o da 0.12.0. Os jogos RacoLabs (público principal brasileiro) devem passar `defaultLocale: 'pt'` e `langTags`:
+
+```ts
+export const game: SeoGame = {
+  // ...origem, nomes, descrições, ajuda, gênero...
+  defaultLocale: 'pt',                        // x-default aponta para /pt/ (padrão: 'en')
+  langTags: { pt: 'pt-BR', en: 'en-US' },     // <html lang>, hreflang e og:locale (pt_BR, en_US); a URL segue /pt/ e /en/
+  heading: { pt: 'Paciência online grátis', en: 'Free online Solitaire' }, // <h1> da página inicial (padrão: o nome)
+  intro: { pt: 'Parágrafo de introdução...', en: 'Intro paragraph...' },  // depois da descrição, só na página inicial
+  links: {                                    // em todas as páginas do idioma; exigido para o AdSense (privacidade)
+    pt: [{ text: 'Política de Privacidade', href: '/pt/privacidade/' }],
+    en: [{ text: 'Privacy Policy', href: '/en/privacy/' }],
+  },
+  priceCurrency: 'BRL',                       // opcional; padrão BRL (pt) e USD (en)
+  gamePlatform: ['Web browser', 'Android'],   // opcional
+  extraPages: [{ paths: { pt: '/pt/privacidade/', en: '/en/privacy/' } }], // só entram no sitemap
+};
+```
+
+| Opção | Efeito |
+| --- | --- |
+| `defaultLocale` | Idioma do `hreflang="x-default"`, na `<head>` e no sitemap. `'pt'` ou `'en'` (padrão `'en'`). |
+| `langTags` | Tag BCP 47 por idioma. Vale em `<html lang>`, `hreflang` e `og:locale` (`pt-BR` vira `pt_BR`; tag sem região usa o padrão do idioma). Sem ela: `pt`/`en`. Tag inválida é recusada. |
+| `heading` | Texto do `<h1>` pré-renderizado da página inicial. As variações usam o próprio título. Não muda `<title>`, JSON-LD nem Open Graph. Padrão: `name`. |
+| `intro` | Parágrafo depois da descrição, escapado. Vale na página inicial; a variação pode ter `intro` própria (`variants[].intro`). |
+| `links` | Lista `{ text, href }` por idioma, num `<nav data-seo="links">` no fim do conteúdo de **todas** as páginas do idioma. `href` começa com `/` (não `//` nem `/\`) ou é https completo; texto e `href` são escapados. |
+| `priceCurrency` | Moeda (ISO 4217) de `offers.priceCurrency`: texto único (`'BRL'`) ou por idioma (`{ pt: 'BRL', en: 'USD' }`). Padrão: BRL no pt e USD no en (o preço é sempre 0; a 0.12.0 usava USD nos dois). |
+| `genre` | Texto ou lista (`['Puzzle', 'Card game']`) nos dados estruturados. |
+| `gamePlatform` | Texto ou lista (`['Web browser', 'Android']`) em `gamePlatform` no JSON-LD. Sem ela, o campo não sai. |
+| `extraPages` | Páginas que o jogo gera por fora (ex.: `/pt/privacidade/`). O módulo **não** escreve o HTML delas: só as põe no `sitemap.xml`, com `hreflang` das tags e `x-default` do `defaultLocale`. Cada caminho: `/<idioma>/<nome>/`, minúsculas, barra no fim, sem repetir página existente. Quem usa `sitemapXml` direto soma `extraEntriesFor(game)` a `pagesFor(game)`; o `prerender` já faz isso. |
+
 ## O que sai
 
 | Arquivo | Conteúdo |
 | --- | --- |
-| `/<lang>/index.html`, `/<lang>/<slug>/index.html` | `index.html` do build com `<html lang>`, head completo e `<h1>`, descrição e "Como jogar" dentro de `#root` |
-| `sitemap.xml` | Todas as páginas, cada uma com `xhtml:link` para pt, en e `x-default` (inglês) |
+| `/<lang>/index.html`, `/<lang>/<slug>/index.html` | `index.html` do build com `<html lang>`, head completo e `<h1>`, descrição, introdução, "Como jogar" e links dentro de `#root` |
+| `sitemap.xml` | Todas as páginas, cada uma com `xhtml:link` para pt, en e `x-default` (inglês, ou o `defaultLocale`); mais as `extraPages` |
 | `robots.txt` | Libera tudo e aponta para o sitemap |
 | `/og/<lang>[-<slug>].svg` | Imagem 1200x630 por página, só se o jogo não informar `shareImage` (com aviso) |
 
@@ -35,7 +68,7 @@ O Google lê SVG, mas WhatsApp, Facebook e X ignoram. Por isso o build **avisa**
 
 ## Dados estruturados
 
-`@type: ["VideoGame", "WebApplication"]` com `applicationCategory: "Game"`, `operatingSystem`, `genre` e `offers` (preço 0). Não há `aggregateRating` nem `review` e não deve haver: nota inventada é proibida. Os dados ficam válidos, mas sem avaliação real o jogo pode não ganhar resultado rico no Google.
+`@type: ["VideoGame", "WebApplication"]` com `applicationCategory: "Game"`, `operatingSystem`, `genre`, `gamePlatform` (se informado), `inLanguage` (a tag de `langTags`, ex.: `pt-BR`; sem ela, `pt`/`en`) e `offers` (preço 0, moeda de `priceCurrency`). Não há `aggregateRating` nem `review` e não deve haver: nota inventada é proibida. Os dados ficam válidos, mas sem avaliação real o jogo pode não ganhar resultado rico no Google.
 
 ## `theme-color`
 

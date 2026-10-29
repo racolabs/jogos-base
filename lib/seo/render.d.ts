@@ -2,7 +2,7 @@ import type { SeoGame, SeoPage } from './types.ts';
 export declare const escapeHtml: (s: string) => string;
 /** Tags do <head> da página: descrição, canonical, hreflang, Open Graph, Twitter e JSON-LD. */
 export declare function headTags(game: SeoGame, page: SeoPage): string;
-/** Texto que já está no HTML inicial: título, descrição e ajuda. O app troca isso quando carrega. */
+/** Texto que já está no HTML inicial: título, descrição, introdução, ajuda e links. O app troca isso quando carrega. */
 export declare function bodyContent(page: SeoPage): string;
 export interface RenderOptions {
     /** Elemento onde o app monta. Padrão: `root`. */

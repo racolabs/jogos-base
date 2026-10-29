@@ -18,5 +18,5 @@ export interface PrerenderResult {
     /** Avisos do build (ex.: imagem de compartilhamento em SVG). Também vão para o console. */
     warnings: string[];
 }
-/** Escreve páginas por idioma e variação, sitemap.xml, robots.txt e (sem `shareImage`) as imagens SVG. */
+/** Escreve páginas por idioma e variação, sitemap.xml (com as `extraPages` do jogo), robots.txt e (sem `shareImage`) as imagens SVG. */
 export declare function prerender(opts: PrerenderOptions): PrerenderResult;
