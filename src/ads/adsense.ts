@@ -6,6 +6,7 @@
  * Modo de teste (test: true) pede anúncios de teste: nada é cobrado nem conta como impressão.
  * Só fala com o Google por aqui: o jogo continua vendo apenas a interface AdProvider.
  */
+import { allowsPersonalization, type ConsentProvider } from './consent.ts';
 import { DEFAULT_AD_POLICY, type AdPolicy, type AdProvider, type BannerPlacement, type FullscreenFormat, type RewardedOutcome } from './types.ts';
 
 interface BreakInfo {
@@ -43,6 +44,12 @@ export interface AdSenseOptions {
   /** Anúncios de teste do Google (desenvolvimento e revisão). */
   test?: boolean;
   policy?: AdPolicy;
+  /**
+   * Consentimento (CMP). Anúncio personalizado só sai com os dois: `policy.nonPersonalized === false` (o jogo sabe que é adulto)
+   * e `consent.state() === 'personalized'` (consentimento explícito). Sem `consent`, ou com qualquer outro estado, é não personalizado.
+   * A mudança de escolha vale para os próximos pedidos, sem recarregar.
+   */
+  consent?: ConsentProvider;
   /** O jogo silencia o som enquanto o anúncio passa. */
   onPause?: () => void;
   onResume?: () => void;
@@ -68,7 +75,11 @@ export class AdSenseProvider implements AdProvider {
     this.started = true;
     const w = this.w;
     const q = (w.adsbygoogle = w.adsbygoogle || ([] as unknown as AdsQueue));
-    if (policy.nonPersonalized) q.requestNonPersonalizedAds = 1;
+    const consent = this.opts.consent;
+    // Padrão não personalizado; só vira personalizado com consentimento explícito (e jogo que permite).
+    const apply = () => void (q.requestNonPersonalizedAds = !policy.nonPersonalized && !policy.childDirected && allowsPersonalization(consent?.state() ?? 'non-personalized') ? 0 : 1);
+    apply();
+    consent?.subscribe(apply);
     w.adBreak = w.adConfig = (c: AdBreakConfig) => void q.push(c);
     const doc = w.document;
     if (!doc.querySelector(`script[src^="${ADSENSE_SCRIPT}"]`)) {
@@ -82,6 +93,15 @@ export class AdSenseProvider implements AdProvider {
       doc.head.appendChild(s);
     }
     w.adConfig({ preloadAdBreaks: 'on', sound: 'on', onReady: () => void (this.ready = true) });
+    // Depois do script: o CMP do Google chega junto com ele. Falha ou demora do CMP não trava os anúncios (seguem não personalizados).
+    if (consent) {
+      try {
+        await consent.init();
+      } catch {
+        // segue não personalizado
+      }
+      apply();
+    }
   }
 
   async preload(_format: FullscreenFormat): Promise<void> {
@@ -161,7 +181,7 @@ export class AdSenseProvider implements AdProvider {
  * Escolhe o fornecedor pelo ambiente do build: com VITE_ADSENSE_CLIENT, AdSense; sem, nenhum anúncio.
  * VITE_ADS_TEST=1 liga os anúncios de teste. Slots de banner: VITE_ADSENSE_SLOT_HOME e VITE_ADSENSE_SLOT_END.
  */
-export function adSenseFromEnv(env: Record<string, string | boolean | undefined>, extra: Pick<AdSenseOptions, 'onPause' | 'onResume' | 'bannerSize'> = {}): AdSenseProvider | null {
+export function adSenseFromEnv(env: Record<string, string | boolean | undefined>, extra: Pick<AdSenseOptions, 'onPause' | 'onResume' | 'bannerSize' | 'consent'> = {}): AdSenseProvider | null {
   const client = typeof env.VITE_ADSENSE_CLIENT === 'string' ? env.VITE_ADSENSE_CLIENT.trim() : '';
   if (!/^ca-pub-\d{10,20}$/.test(client)) return null;
   const slot = (k: string) => (typeof env[k] === 'string' && /^\d{6,12}$/.test(env[k] as string) ? (env[k] as string) : undefined);
