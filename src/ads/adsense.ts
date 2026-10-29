@@ -134,7 +134,7 @@ export class AdSenseProvider implements AdProvider {
     ins.setAttribute('data-ad-client', this.opts.client);
     ins.setAttribute('data-ad-slot', id);
     const size = this.opts.bannerSize;
-    if (size && size.width > 0 && size.height > 0) {
+    if (size && Number.isFinite(size.width) && Number.isFinite(size.height) && size.width >= 1 && size.height >= 1) {
       // Bloco de tamanho fixo (formato documentado do AdSense): inline-block, largura e altura no style.
       ins.style.display = 'inline-block';
       ins.style.width = `${Math.round(size.width)}px`;
