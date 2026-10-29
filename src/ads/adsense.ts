@@ -34,6 +34,12 @@ export interface AdSenseOptions {
   client: string;
   /** Id do bloco de anúncio de cada banner (criado no painel do AdSense). Sem id, sem banner. */
   bannerSlots?: Partial<Record<BannerPlacement, string>>;
+  /**
+   * Banner de tamanho fixo, em px (ex.: { width: 320, height: 50 }). O `ins` sai com essa largura e altura no style,
+   * sem data-ad-format=auto nem data-full-width-responsive, e o bloco no painel do AdSense deve ser "fixo" do mesmo tamanho.
+   * Use quando o jogo reserva um espaço de altura fixa: o anúncio nunca passa dele. Sem a opção, o banner é responsivo.
+   */
+  bannerSize?: { width: number; height: number };
   /** Anúncios de teste do Google (desenvolvimento e revisão). */
   test?: boolean;
   policy?: AdPolicy;
@@ -125,11 +131,19 @@ export class AdSenseProvider implements AdProvider {
     this.hideBanner(placement);
     const ins = this.w.document.createElement('ins');
     ins.className = 'adsbygoogle';
-    ins.style.display = 'block';
     ins.setAttribute('data-ad-client', this.opts.client);
     ins.setAttribute('data-ad-slot', id);
-    ins.setAttribute('data-ad-format', 'auto');
-    ins.setAttribute('data-full-width-responsive', 'true');
+    const size = this.opts.bannerSize;
+    if (size && size.width > 0 && size.height > 0) {
+      // Bloco de tamanho fixo (formato documentado do AdSense): inline-block, largura e altura no style.
+      ins.style.display = 'inline-block';
+      ins.style.width = `${Math.round(size.width)}px`;
+      ins.style.height = `${Math.round(size.height)}px`;
+    } else {
+      ins.style.display = 'block';
+      ins.setAttribute('data-ad-format', 'auto');
+      ins.setAttribute('data-full-width-responsive', 'true');
+    }
     if (this.opts.test) ins.setAttribute('data-adtest', 'on');
     slot.appendChild(ins);
     this.banners.set(placement, ins);
@@ -147,7 +161,7 @@ export class AdSenseProvider implements AdProvider {
  * Escolhe o fornecedor pelo ambiente do build: com VITE_ADSENSE_CLIENT, AdSense; sem, nenhum anúncio.
  * VITE_ADS_TEST=1 liga os anúncios de teste. Slots de banner: VITE_ADSENSE_SLOT_HOME e VITE_ADSENSE_SLOT_END.
  */
-export function adSenseFromEnv(env: Record<string, string | boolean | undefined>, extra: Pick<AdSenseOptions, 'onPause' | 'onResume'> = {}): AdSenseProvider | null {
+export function adSenseFromEnv(env: Record<string, string | boolean | undefined>, extra: Pick<AdSenseOptions, 'onPause' | 'onResume' | 'bannerSize'> = {}): AdSenseProvider | null {
   const client = typeof env.VITE_ADSENSE_CLIENT === 'string' ? env.VITE_ADSENSE_CLIENT.trim() : '';
   if (!/^ca-pub-\d{10,20}$/.test(client)) return null;
   const slot = (k: string) => (typeof env[k] === 'string' && /^\d{6,12}$/.test(env[k] as string) ? (env[k] as string) : undefined);
