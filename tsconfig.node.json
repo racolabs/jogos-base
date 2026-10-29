@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "declaration": true,
+    "newLine": "lf",
+    "rootDir": "src",
+    "outDir": "lib",
+    "types": ["node"],
+    "sourceMap": false
+  },
+  "include": ["src/seo/node.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}
