@@ -3,6 +3,8 @@ import type { SeoGame, SeoPage, SitemapEntry } from './types.ts';
 export declare const DEFAULT_LANG: Lang;
 /** Tag BCP 47 do idioma neste jogo: a de `langTags` ou, sem ela, o próprio `pt`/`en`. */
 export declare const langTagOf: (game: SeoGame, lang: Lang) => string;
+/** Moeda de `offers.priceCurrency` neste idioma: a de `priceCurrency` ou BRL (pt) / USD (en). */
+export declare const currencyOf: (game: SeoGame, lang: Lang) => string;
 /** Idioma do x-default: `defaultLocale` ou `en`. */
 export declare const defaultLangOf: (game: SeoGame) => Lang;
 /** Confere o que quebraria o SEO sem avisar: origem, slugs repetidos, texto vazio nos dois idiomas. */

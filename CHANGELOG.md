@@ -6,8 +6,9 @@ Ajuste do módulo `seo` para os jogos que adotaram a 0.12.0 sem regressão de SE
 
 - `defaultLocale`: idioma do `hreflang="x-default"` (padrão `'en'`). Os jogos RacoLabs devem passar `'pt'`.
 - `langTags`: tag BCP 47 por idioma (`{ pt: 'pt-BR', en: 'en-US' }`), usada em `<html lang>`, `hreflang` (head e sitemap) e `og:locale` (`pt_BR`/`en_US`). A URL continua `/pt/` e `/en/`.
-- `intro` (parágrafo de introdução) e `links` (`{ text, href }`, ex.: privacidade, exigida para o AdSense) por idioma, no HTML pré-renderizado, escapados. `href` só aceita `/caminho` ou https. A variação pode ter `intro` própria.
+- `intro` (parágrafo de introdução) e `links` (`{ text, href }`, ex.: privacidade, exigida para o AdSense) por idioma, no HTML pré-renderizado, escapados. `href` só aceita `/caminho` (sem `//` nem `/\` no começo) ou https. A variação pode ter `intro` própria.
 - `heading`: título visível (`<h1>`) da página inicial por idioma (ex.: "Paciência online grátis"); padrão é o nome do jogo. O nome em JSON-LD e Open Graph não muda.
+- JSON-LD: `priceCurrency` (uma moeda ou por idioma; padrão BRL no pt e USD no en, em vez de USD fixo), `genre` como texto ou lista, `gamePlatform` (ex.: `['Web browser', 'Android']`, só sai se informado) e `inLanguage` seguindo `langTags`.
 - `extraPages` (`{ paths: { pt, en } }`): páginas geradas por fora (ex.: `/pt/privacidade/`) entram no `sitemap.xml` com `hreflang` e `x-default` corretos. Novas funções `extraEntriesFor` e `langTagOf`; `sitemapXml` aceita qualquer `SitemapEntry`.
 
 ## 0.12.0

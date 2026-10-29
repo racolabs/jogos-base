@@ -5,10 +5,16 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DEFAULT_HELP_TITLE = { pt: 'Como jogar', en: 'How to play' } as const;
 export const DEFAULT_LANG: Lang = 'en';
 const BCP47 = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-const LINK_HREF = /^(?:\/(?!\/)\S*|https:\/\/\S+)$/;
+const LINK_HREF = /^(?:\/(?![\/\\])\S*|https:\/\/\S+)$/;
 
 /** Tag BCP 47 do idioma neste jogo: a de `langTags` ou, sem ela, o próprio `pt`/`en`. */
 export const langTagOf = (game: SeoGame, lang: Lang): string => game.langTags?.[lang] ?? lang;
+const DEFAULT_CURRENCY: Record<Lang, string> = { pt: 'BRL', en: 'USD' };
+/** Moeda de `offers.priceCurrency` neste idioma: a de `priceCurrency` ou BRL (pt) / USD (en). */
+export const currencyOf = (game: SeoGame, lang: Lang): string => {
+  const c = game.priceCurrency;
+  return (typeof c === 'string' ? c : c?.[lang]) ?? DEFAULT_CURRENCY[lang];
+};
 /** Idioma do x-default: `defaultLocale` ou `en`. */
 export const defaultLangOf = (game: SeoGame): Lang => game.defaultLocale ?? DEFAULT_LANG;
 
@@ -31,6 +37,13 @@ export function validateGame(game: SeoGame): string[] {
       if (typeof l.href !== 'string' || !LINK_HREF.test(l.href)) errors.push(`links.${lang}: href deve começar com / ou ser https completo (${l.href})`);
     }
   }
+  for (const lang of LANGS) {
+    const cur = currencyOf(game, lang);
+    if (!/^[A-Z]{3}$/.test(cur)) errors.push(`priceCurrency.${lang} deve ter 3 letras maiúsculas: ${cur}`);
+  }
+  const genres = [game.genre].flat();
+  if (!genres.length || genres.some((g) => typeof g !== 'string' || !g.trim())) errors.push('genre vazio');
+  if (game.gamePlatform !== undefined && [game.gamePlatform].flat().some((g) => typeof g !== 'string' || !g.trim())) errors.push('gamePlatform com item vazio');
   const seen = new Set<string>();
   for (const v of game.variants ?? []) {
     if (!SLUG.test(v.slug)) errors.push(`slug inválido: ${v.slug}`);

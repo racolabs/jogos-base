@@ -57,7 +57,14 @@ export interface SeoGame {
     /** Título da seção de ajuda. Padrão: "Como jogar" / "How to play". */
     helpTitle?: Localized;
     /** Gênero para os dados estruturados (ex.: `Puzzle`, `Card game`). */
-    genre: string;
+    genre: string | readonly string[];
+    /** Plataformas nos dados estruturados (`gamePlatform`), ex.: `['Web browser', 'Android']`. Sem ela, o campo não sai. */
+    gamePlatform?: string | readonly string[];
+    /**
+     * Moeda (ISO 4217, 3 letras) de `offers.priceCurrency`. Pode ser uma só (`'BRL'`) ou por idioma (`{ pt: 'BRL', en: 'USD' }`).
+     * Padrão: BRL no idioma pt e USD no en (o preço é sempre 0).
+     */
+    priceCurrency?: string | Partial<Record<Lang, string>>;
     variants?: readonly SeoVariant[];
     /**
      * Imagem de compartilhamento pronta: PNG ou JPG 1200x630, caminho com `/` no início (`/og.png`) ou endereço https completo.

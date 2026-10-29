@@ -1,4 +1,5 @@
 import { LANGS } from '../i18n/index.ts';
+import { currencyOf } from './pages.ts';
 import type { SeoGame, SeoPage } from './types.ts';
 
 const abs = (origin: string, pathOrUrl: string) => (/^https?:\/\//.test(pathOrUrl) ? pathOrUrl : origin + pathOrUrl);
@@ -15,14 +16,15 @@ export function videoGameJsonLd(game: SeoGame, page: SeoPage): Record<string, un
     description: page.description,
     url: page.url,
     image: abs(game.origin, page.image),
-    inLanguage: page.lang,
+    inLanguage: page.langTag,
     genre: game.genre,
     applicationCategory: 'Game',
     operatingSystem: 'Any',
     playMode: 'SinglePlayer',
     isAccessibleForFree: true,
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
+    offers: { '@type': 'Offer', price: '0', priceCurrency: currencyOf(game, page.lang), availability: 'https://schema.org/InStock' },
   };
+  if (game.gamePlatform !== undefined) ld.gamePlatform = game.gamePlatform;
   if (game.publisher) ld.publisher = { '@type': 'Organization', name: game.publisher.name, url: game.publisher.url };
   if (page.variant) {
     ld.isPartOf = { '@type': 'VideoGame', name: game.name[page.lang], url: `${game.origin}/${page.lang}/` };
@@ -43,13 +45,17 @@ export function validateVideoGameJsonLd(ld: unknown): string[] {
   const types = Array.isArray(o['@type']) ? o['@type'] : [o['@type']];
   if (!types.includes('VideoGame') || !types.includes('WebApplication')) errors.push('@type deve ser [VideoGame, WebApplication]');
   if (o.aggregateRating !== undefined || o.review !== undefined) errors.push('aggregateRating/review só com avaliação real');
-  for (const key of ['name', 'description', 'genre', 'applicationCategory', 'operatingSystem']) {
+  for (const key of ['name', 'description', 'applicationCategory', 'operatingSystem']) {
     if (typeof o[key] !== 'string' || !(o[key] as string).trim()) errors.push(`${key} ausente`);
   }
+  const listOk = (v: unknown) => (Array.isArray(v) ? v.length > 0 : true) && [v].flat().every((x) => typeof x === 'string' && x.trim());
+  if (!listOk(o.genre)) errors.push('genre ausente');
+  if (o.gamePlatform !== undefined && !listOk(o.gamePlatform)) errors.push('gamePlatform inválido');
   for (const key of ['url', 'image']) {
     if (typeof o[key] !== 'string' || !/^https:\/\/\S+$/.test(o[key] as string)) errors.push(`${key} deve ser um endereço https`);
   }
-  if (!(LANGS as readonly unknown[]).includes(o.inLanguage)) errors.push('inLanguage deve ser pt ou en');
+  const primary = typeof o.inLanguage === 'string' && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(o.inLanguage) ? o.inLanguage.split('-')[0]!.toLowerCase() : '';
+  if (!(LANGS as readonly string[]).includes(primary)) errors.push('inLanguage deve ser pt ou en');
   const offers = o.offers as Record<string, unknown> | undefined;
   if (!offers || offers['@type'] !== 'Offer') errors.push('offers deve ser um Offer');
   else {

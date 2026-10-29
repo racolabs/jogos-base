@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { EXAMPLE_GAME, EXAMPLE_TEMPLATE } from './fixture.ts';
 import { prerender } from './node.ts';
-import { extraEntriesFor, pagesFor, renderPage, sitemapXml, validateGame, videoGameJsonLd } from './index.ts';
+import { extraEntriesFor, pagesFor, renderPage, sitemapXml, validateGame, validateVideoGameJsonLd, videoGameJsonLd } from './index.ts';
 
 /** Opções da 0.12.1: defaultLocale, langTags, intro, links, extraPages e heading. */
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html');
@@ -110,6 +110,8 @@ describe('intro e links no HTML pré-renderizado', () => {
     const bad = (href: string, text = 'x') => validateGame({ ...EXAMPLE_GAME, links: { pt: [{ text, href }] } });
     expect(bad('javascript:alert(1)')).toHaveLength(1);
     expect(bad('//evil.com')).toHaveLength(1);
+    expect(bad('/\\evil.com')).toHaveLength(1);
+    expect(bad('/pt/a\\b/')).toEqual([]);
     expect(bad('http://x.app/')).toHaveLength(1);
     expect(bad('/pt/privacidade/', ' ')).toEqual(['links.pt: texto vazio']);
     expect(bad('/pt/privacidade/')).toEqual([]);
@@ -180,5 +182,57 @@ describe('heading (h1 visível)', () => {
     const g = { ...EXAMPLE_GAME, heading: { pt: 'Só em pt' } };
     expect(pagesFor(g).find((p) => p.path === '/en/')!.h1).toBe('Example');
     expect(validateGame({ ...EXAMPLE_GAME, heading: { en: '  ' } })).toEqual(['heading.en vazio']);
+  });
+});
+
+describe('JSON-LD: priceCurrency, genre, gamePlatform e inLanguage', () => {
+  const ld = (g: typeof EXAMPLE_GAME, path: string) => videoGameJsonLd(g, pagesFor(g).find((p) => p.path === path)!) as Record<string, unknown>;
+  const offers = (o: Record<string, unknown>) => o.offers as { priceCurrency: string; price: string };
+
+  it('moeda padrão: BRL no pt e USD no en; price continua 0', () => {
+    expect(offers(ld(EXAMPLE_GAME, '/pt/')).priceCurrency).toBe('BRL');
+    expect(offers(ld(EXAMPLE_GAME, '/en/')).priceCurrency).toBe('USD');
+    expect(offers(ld(EXAMPLE_GAME, '/pt/')).price).toBe('0');
+  });
+
+  it('priceCurrency única vale nos dois idiomas; por idioma, cada um com a sua (o que faltar usa o padrão)', () => {
+    const one = { ...EXAMPLE_GAME, priceCurrency: 'EUR' };
+    expect(offers(ld(one, '/pt/')).priceCurrency).toBe('EUR');
+    expect(offers(ld(one, '/en/')).priceCurrency).toBe('EUR');
+    const per = { ...EXAMPLE_GAME, priceCurrency: { en: 'GBP' } };
+    expect(offers(ld(per, '/pt/')).priceCurrency).toBe('BRL');
+    expect(offers(ld(per, '/en/dificil/')).priceCurrency).toBe('GBP');
+  });
+
+  it('recusa moeda que não seja ISO de 3 letras maiúsculas', () => {
+    expect(validateGame({ ...EXAMPLE_GAME, priceCurrency: 'brl' })).toEqual(['priceCurrency.pt deve ter 3 letras maiúsculas: brl', 'priceCurrency.en deve ter 3 letras maiúsculas: brl']);
+  });
+
+  it('genre aceita texto ou lista; gamePlatform só sai se informado', () => {
+    expect(ld(EXAMPLE_GAME, '/pt/').genre).toBe('Puzzle');
+    expect(ld(EXAMPLE_GAME, '/pt/')).not.toHaveProperty('gamePlatform');
+    const g = { ...EXAMPLE_GAME, genre: ['Puzzle', 'Card game'], gamePlatform: ['Web browser', 'Android'] };
+    const out = ld(g, '/en/');
+    expect(out.genre).toEqual(['Puzzle', 'Card game']);
+    expect(out.gamePlatform).toEqual(['Web browser', 'Android']);
+    expect(validateVideoGameJsonLd(out)).toEqual([]);
+    expect(ld({ ...EXAMPLE_GAME, gamePlatform: 'Web browser' }, '/en/').gamePlatform).toBe('Web browser');
+    expect(JSON.stringify(parse(renderPage(EXAMPLE_TEMPLATE, g, pagesFor(g)[0]!)).querySelector('script[type="application/ld+json"]')?.textContent)).toContain('Android');
+  });
+
+  it('recusa genre e gamePlatform vazios', () => {
+    expect(validateGame({ ...EXAMPLE_GAME, genre: [] })).toEqual(['genre vazio']);
+    expect(validateGame({ ...EXAMPLE_GAME, genre: ' ' })).toEqual(['genre vazio']);
+    expect(validateGame({ ...EXAMPLE_GAME, gamePlatform: ['Web browser', ''] })).toEqual(['gamePlatform com item vazio']);
+    expect(validateVideoGameJsonLd({ ...ld(EXAMPLE_GAME, '/en/'), genre: [] })).toEqual(['genre ausente']);
+    expect(validateVideoGameJsonLd({ ...ld(EXAMPLE_GAME, '/en/'), gamePlatform: [1] })).toEqual(['gamePlatform inválido']);
+  });
+
+  it('inLanguage segue langTags; sem elas, pt/en como na 0.12.0; o validador aceita pt-BR e recusa fr-FR', () => {
+    expect(ld(EXAMPLE_GAME, '/pt/').inLanguage).toBe('pt');
+    expect(ld(br, '/pt/').inLanguage).toBe('pt-BR');
+    expect(ld(br, '/en/dificil/').inLanguage).toBe('en-US');
+    expect(validateVideoGameJsonLd(ld(br, '/pt/'))).toEqual([]);
+    expect(validateVideoGameJsonLd({ ...ld(br, '/pt/'), inLanguage: 'fr-FR' })).toEqual(['inLanguage deve ser pt ou en']);
   });
 });
