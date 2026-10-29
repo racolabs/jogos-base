@@ -5,5 +5,5 @@ export * from './components.tsx';
 export { SHELL_CSS } from './shell-css.ts';
 export * from './install.tsx';
 export * from './missions.tsx';
-export { androidIntentUrl, appLinkProps, isAndroid, type AppLinkOptions } from './applink.ts';
+export { androidIntentUrl, appLinkProps, isAndroid, storeUrl, type AppLinkOptions } from './applink.ts';
 export { GAMES, MoreGames, type GameInfo } from './games.tsx';
