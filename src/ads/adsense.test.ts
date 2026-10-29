@@ -83,8 +83,45 @@ describe('AdSense (H5 Games Ads)', () => {
     const ins = slot.querySelector('ins.adsbygoogle')!;
     expect(ins.getAttribute('data-ad-slot')).toBe('1234567890');
     expect(ins.getAttribute('data-adtest')).toBe('on');
+    expect(ins.getAttribute('data-ad-format')).toBe('auto');
+    expect(ins.getAttribute('data-full-width-responsive')).toBe('true');
+    expect((ins as HTMLElement).style.display).toBe('block');
     ads.hideBanner('home');
     expect(slot.querySelector('ins')).toBeNull();
+  });
+
+  it('banner de tamanho fixo: largura e altura no style, sem formato auto nem full-width-responsive', async () => {
+    const { win } = fakeWin();
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    const ads = new AdSenseProvider({ client: 'ca-pub-1', bannerSlots: { home: '1234567890' }, bannerSize: { width: 320, height: 50 }, win });
+    expect(await ads.showBanner('home', slot)).toBe(true);
+    const ins = slot.querySelector('ins.adsbygoogle') as HTMLElement;
+    expect(ins.getAttribute('data-ad-slot')).toBe('1234567890');
+    expect(ins.getAttribute('data-ad-client')).toBe('ca-pub-1');
+    expect(ins.style.display).toBe('inline-block');
+    expect(ins.style.width).toBe('320px');
+    expect(ins.style.height).toBe('50px');
+    expect(ins.hasAttribute('data-ad-format')).toBe(false);
+    expect(ins.hasAttribute('data-full-width-responsive')).toBe(false);
+    ads.hideBanner('home');
+    expect(slot.querySelector('ins')).toBeNull();
+  });
+
+  it('bannerSize inválido (0, NaN, Infinity, 0.3) cai no banner responsivo', async () => {
+    const invalidos = [{ width: 0, height: 50 }, { width: 320, height: NaN }, { width: Infinity, height: 50 }, { width: 320, height: 0.3 }];
+    for (const bannerSize of invalidos) {
+      const { win } = fakeWin();
+      const slot = document.createElement('div');
+      document.body.appendChild(slot);
+      const ads = new AdSenseProvider({ client: 'ca-pub-1', bannerSlots: { home: '1234567890' }, bannerSize, win });
+      expect(await ads.showBanner('home', slot)).toBe(true);
+      const ins = slot.querySelector('ins.adsbygoogle') as HTMLElement;
+      expect(ins.getAttribute('data-ad-format')).toBe('auto');
+      expect(ins.getAttribute('data-full-width-responsive')).toBe('true');
+      expect(ins.style.display).toBe('block');
+      expect(ins.style.width).toBe('');
+    }
   });
 
   it('pelo ambiente: sem ID válido, nenhum anúncio; com ID, AdSense', () => {
