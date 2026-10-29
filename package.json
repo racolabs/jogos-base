@@ -1,12 +1,13 @@
 {
   "name": "jogos-base",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "Base compartilhada dos jogos casuais. Instalada pelos jogos por tag git (github:racolabs/jogos-base#vX.Y.Z).",
   "exports": {
     ".": "./src/index.ts",
     "./ads": "./src/ads/index.ts",
+    "./ads/guard": "./src/ads/guard.ts",
     "./config": "./src/config/index.ts",
     "./storage": "./src/storage/index.ts",
     "./i18n": "./src/i18n/index.ts",
