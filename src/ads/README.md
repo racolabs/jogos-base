@@ -60,3 +60,34 @@ await ads.init({ nonPersonalized: false, childDirected: false }); // o jogo sabe
 - **Recusar é tão fácil quanto aceitar:** uma resposta, um estado novo, nos dois sentidos (testes em `consent.test.ts`).
 - **Configurações:** `<PrivacyChoicesButton consent={consent} lang="pt" />` (`jogos-base/ui`) ou `openPrivacyChoices(consent)`.
   O botão só aparece se há o que rever.
+
+## Contrato de anúncio (`contract.test.ts`)
+
+Regras que toda implementação de `AdProvider` cumpre. O teste `contract.test.ts` as verifica em **todas** as classes
+exportadas por `src/ads/index.ts`: ele as descobre sozinho (qualquer classe com a forma de `AdProvider`) e roda o mesmo
+roteiro (init, banner, intersticial, premiado) em cada uma.
+
+1. **Sem consentimento, nada personalizado.** Sem CMP, com consentimento `unknown` ou `non-personalized`, CMP que falha,
+   consentimento revogado, política padrão ou `childDirected`, todo pedido (banner, intersticial e premiado) sai não
+   personalizado. O pior caso testado é o jogo que se declara adulto (`nonPersonalized: false`). Personalizar exige os dois:
+   decisão do jogo **e** `consent.state() === 'personalized'`. Para a rede, "personalizado" é qualquer pedido feito sem a
+   flag de não personalizado ligada (no AdSense, `requestNonPersonalizedAds !== 1`).
+2. **A segmentação própria só decide quanto, nunca qual.** Nível, sessão, métricas e o estado do jogador (`PlayerAdState`)
+   só entram em `rules.ts`/`AdsController` (intervalo, limites, bloqueios). Nada disso chega à rede como parâmetro de
+   targeting. O teste reprova: (a) chave ou atributo novo na fila do Google, em `script`/`ins` ou na URL do script, e qualquer
+   nome ou valor de segmentação; (b) o `AdsController` entregar ao provider algo além de formato/posição; (c) arquivo das
+   implementações que importe `rules`/`controller`/`metrics`/`missions`/`storage`/`daily` ou leia campos de `PlayerAdState`.
+
+### Implementação nova
+
+1. Exporte a classe em `src/ads/index.ts`. Uma classe `implements AdProvider` fora do índice também reprova o teste.
+2. O teste falha em "toda implementação exportada tem harness" até você registrar um harness em `HARNESSES`
+   (`contract.test.ts`). O harness diz como observar o que a rede recebe: `adsenseHarness` lê a fila e a flag de
+   personalização; `offlineHarness` serve a quem não fala com rede (e reprova se passar a falar). Para uma rede nova, o harness
+   precisa ver o pedido de banner, intersticial e premiado e dizer se cada um saiu personalizado; harness que não vê pedido
+   nenhum reprova ("teste cego").
+3. Parâmetro novo para a rede (atributo, chave, query) reprova até entrar na lista permitida (`ALLOWED_*` no teste). Antes de
+   acrescentar, confirme que não é dado do jogador.
+
+O teste também prova que ele mesmo funciona: uma implementação defeituosa de propósito (pede personalizado sem consentimento)
+e payloads com `level`, `session` etc. têm de ser reprovados.
