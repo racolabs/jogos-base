@@ -3,6 +3,8 @@
  * - som sintetizado no próprio jogo (sem arquivo), baixo e macio; nada toca antes do primeiro toque;
  * - vibração só quando o jogador recebe um prêmio, nunca durante a jogada.
  */
+import { portalAudioMuted } from '../ads/portal.ts';
+
 export interface FeedbackSettings {
   sound: boolean;
   haptics: boolean;
@@ -106,6 +108,8 @@ export class Feedback {
   }
 
   private out(): AudioOut | null {
+    // O portal (CrazyGames) pediu silêncio: vale mais que a configuração do jogador.
+    if (portalAudioMuted()) return null;
     try {
       if (!this.audio) {
         this.audio = this.deps.createAudio();

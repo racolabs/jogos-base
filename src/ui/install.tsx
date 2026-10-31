@@ -5,6 +5,7 @@
  * - Já instalado ou navegador sem suporte: nada aparece.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { portalBlocks } from '../ads/portal.ts';
 import { Button, Sheet } from './components.tsx';
 
 export type InstallState = 'installed' | 'prompt' | 'ios' | 'unsupported';
@@ -45,6 +46,8 @@ export function isWindowsShell(env: InstallEnv): boolean {
 
 /** Estado inicial, antes de o navegador mandar (ou não) o pedido de instalação. */
 export function initialInstallState(env: InstallEnv): InstallState {
+  // Portais não aceitam instalar o app: nenhum cartão, passo a passo ou linha de configuração depende deste estado.
+  if (portalBlocks('install')) return 'unsupported';
   if (env.standalone) return 'installed';
   if (isIOS(env)) return 'ios';
   return 'unsupported';
@@ -54,6 +57,7 @@ export function useInstall(env: InstallEnv = browserEnv()) {
   const [state, setState] = useState<InstallState>(() => initialInstallState(env));
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   useEffect(() => {
+    if (portalBlocks('install')) return;
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setEvent(e as BeforeInstallPromptEvent);

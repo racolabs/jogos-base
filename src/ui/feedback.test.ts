@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { activatePortal, CRAZYGAMES_PROFILE, NO_PORTAL_EVENTS } from '../ads/portal.ts';
 import { Feedback, REWARD_VIBRATION, type AudioOut, type FeedbackSettings } from './feedback.ts';
 
 /** AudioContext falso: guarda as frequências e os volumes pedidos. */
@@ -117,5 +118,22 @@ describe('vibração só no prêmio', () => {
     const early = setup({}, false);
     early.fb.reward();
     expect(early.vibrations).toHaveLength(0);
+  });
+});
+
+describe('silêncio do portal', () => {
+  afterEach(() => activatePortal(null));
+
+  it('portal que pediu silêncio cala som e prêmio, mesmo com o som ligado nas configurações, e a vibração do prêmio segue o jogador', () => {
+    let muted = true;
+    activatePortal(CRAZYGAMES_PROFILE, { ...NO_PORTAL_EVENTS, audioMuted: () => muted });
+    const { fb, tones, vibrations } = setup();
+    fb.play('tap');
+    fb.reward();
+    expect(tones).toHaveLength(0);
+    expect(vibrations).toEqual([REWARD_VIBRATION]);
+    muted = false;
+    fb.play('tap');
+    expect(tones.length).toBeGreaterThan(0);
   });
 });

@@ -3,6 +3,7 @@
  * Jogo novo entra aqui uma vez e aparece em todos (depois de atualizar o jogos-base em cada um).
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { portalBlocks } from '../ads/portal.ts';
 import { appLinkProps } from './applink.ts';
 
 type Lang = 'pt' | 'en';
@@ -73,6 +74,8 @@ const TEXT = { pt: { title: 'Mais jogos da RacoLabs' }, en: { title: 'More RacoL
 
 /** Faixa compacta com os outros jogos. Abre fora do app instalado (ver appLinkProps). */
 export function MoreGames({ lang, current, onOpen }: { lang: Lang; current: string; onOpen?: (id: string) => void }) {
+  // Portais (CrazyGames) não aceitam divulgação de outros jogos: a faixa some sem o jogo mudar.
+  if (portalBlocks('crossPromo')) return null;
   const others = GAMES.filter((g) => g.id !== current);
   return (
     <nav className="rl-more" aria-label={TEXT[lang].title}>
