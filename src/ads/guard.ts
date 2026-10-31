@@ -57,7 +57,7 @@ export const AD_SDK_SCRIPT_HOSTS: readonly string[] = [
 ];
 
 /** Globais que as redes criam na página; o jogo não deve tocar neles. */
-export const AD_SDK_GLOBALS: readonly string[] = ['adsbygoogle', 'googletag'];
+export const AD_SDK_GLOBALS: readonly string[] = ['adsbygoogle', 'googletag', 'CrazyGames'];
 
 export interface AdSdkViolation {
   file: string;
