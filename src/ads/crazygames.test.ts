@@ -159,7 +159,26 @@ describe('CrazyGamesProvider: anúncios', () => {
     expect(await first).toBe(true);
   });
 
-  it('adsDisabled (Basic Launch, modo infantil) desliga os dois formatos para a sessão; o jogo segue', async () => {
+  it('adsDisabled desliga só o formato que recebeu o erro: no modo offline o premiado segue existindo', async () => {
+    const sdk = fakeSdk();
+    const ads = await ready(sdk);
+    const mid = ads.showInterstitial();
+    await tick();
+    sdk.ads.midgame!.adError!({ code: 'adsDisabled', message: 'offline' });
+    expect(await mid).toBe(false);
+    expect(ads.isReady('interstitial')).toBe(false);
+    expect(ads.isReady('rewarded')).toBe(true);
+    expect(await ads.showInterstitial()).toBe(false);
+    expect(sdk.calls.filter((c) => c.startsWith('ad:'))).toEqual(['ad:midgame']);
+
+    const rew = ads.showRewarded();
+    await tick();
+    sdk.ads.rewarded!.adStarted!();
+    sdk.ads.rewarded!.adFinished!();
+    expect(await rew).toBe('earned');
+  });
+
+  it('adsDisabled no premiado (Basic Launch, modo infantil) desliga o premiado; o intersticial só se o portal disser a ele', async () => {
     const sdk = fakeSdk();
     const ads = await ready(sdk);
     const p = ads.showRewarded();
@@ -167,9 +186,14 @@ describe('CrazyGamesProvider: anúncios', () => {
     sdk.ads.rewarded!.adError!({ code: 'adsDisabled', message: 'Basic Launch' });
     expect(await p).toBe('unavailable');
     expect(ads.isReady('rewarded')).toBe(false);
+    expect(await ads.showRewarded()).toBe('unavailable');
+    expect(ads.isReady('interstitial')).toBe(true);
+    const mid = ads.showInterstitial();
+    await tick();
+    sdk.ads.midgame!.adError!({ code: 'adsDisabled', message: 'Basic Launch' });
+    expect(await mid).toBe(false);
     expect(ads.isReady('interstitial')).toBe(false);
-    expect(await ads.showInterstitial()).toBe(false);
-    expect(sdk.calls.filter((c) => c.startsWith('ad:'))).toEqual(['ad:rewarded']);
+    expect(sdk.calls.filter((c) => c.startsWith('ad:'))).toEqual(['ad:rewarded', 'ad:midgame']);
   });
 
   it('com bloqueador de anúncio o premiado não é oferecido, mas o jogo segue normal', async () => {
@@ -178,7 +202,7 @@ describe('CrazyGamesProvider: anúncios', () => {
     expect(await ads.showRewarded()).toBe('unavailable');
   });
 
-  it('anúncio que não começa a tempo: o jogo segue; o fim real ainda libera o próximo pedido', async () => {
+  it('intersticial que não começa a tempo: o jogo segue; o fim real ainda libera o próximo pedido', async () => {
     vi.useFakeTimers();
     const sdk = fakeSdk();
     install(sdk);
@@ -190,6 +214,35 @@ describe('CrazyGamesProvider: anúncios', () => {
     expect(ads.isReady('interstitial')).toBe(false);
     sdk.ads.midgame!.adError!({ code: 'unfilled' });
     expect(ads.isReady('interstitial')).toBe(true);
+  });
+
+  it('premiado: o tempo de espera é maior e para no adStarted, então quem assiste sempre recebe o prêmio', async () => {
+    vi.useFakeTimers();
+    const sdk = fakeSdk();
+    install(sdk);
+    const ads = new CrazyGamesProvider({ win: window as never, requestTimeoutMs: 1000, rewardedRequestTimeoutMs: 5000 });
+    await ads.init(DEFAULT_AD_POLICY);
+    let outcome: string | undefined;
+    const p = ads.showRewarded().then((o) => (outcome = o));
+    await vi.advanceTimersByTimeAsync(4000); // passou do prazo do intersticial, ainda dentro do premiado
+    expect(outcome).toBeUndefined();
+    sdk.ads.rewarded!.adStarted!(); // começou: o relógio para
+    await vi.advanceTimersByTimeAsync(10 * 60_000); // anúncio longo: nada estoura
+    expect(outcome).toBeUndefined();
+    sdk.ads.rewarded!.adFinished!();
+    await p;
+    expect(outcome).toBe('earned');
+  });
+
+  it('premiado em que o SDK fica mudo por todo o prazo: o jogo segue sem prêmio', async () => {
+    vi.useFakeTimers();
+    const sdk = fakeSdk();
+    install(sdk);
+    const ads = new CrazyGamesProvider({ win: window as never, rewardedRequestTimeoutMs: 5000 });
+    await ads.init(DEFAULT_AD_POLICY);
+    const p = ads.showRewarded();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(await p).toBe('unavailable');
   });
 
   it('SDK que lança no pedido não derruba o jogo', async () => {

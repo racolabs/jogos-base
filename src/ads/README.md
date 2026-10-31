@@ -45,8 +45,11 @@ bloco no painel e o do `bannerSize` devem coincidir. O mesmo `bannerSize` vale p
 - **SDK ausente = no-op seguro.** Script bloqueado, domínio que não é do portal (`environment: 'disabled'`), `init()` que falha ou passa de
   `loadTimeoutMs` (8 s): nenhum anúncio, nenhum erro, o jogo segue. `adsDisabled` (Basic Launch, modo infantil) e bloqueador de anúncio
   escondem os formatos desligados (`isReady` passa a `false`), então o jogo não oferece botão de premiado sem efeito.
+  O `adsDisabled` desliga **só o formato** que recebeu o erro (no modo offline só o premiado existe); o bloqueador derruba o premiado.
 - **Um anúncio por vez** (o portal proíbe encadear). Pedido enquanto outro corre volta `false`/`unavailable`. Se o anúncio não começa em
-  `requestTimeoutMs` (20 s), o jogo segue; o fim real do anúncio libera o pedido seguinte.
+  `requestTimeoutMs` (20 s; premiado: `rewardedRequestTimeoutMs`, 60 s), o jogo segue; o fim real do anúncio libera o pedido seguinte. O relógio
+  para no `adStarted`, então anúncio que começou nunca estoura. O premiado espera mais porque, se o `adStarted` viesse depois do prazo, o
+  jogador veria o anúncio e ficaria sem prêmio.
 - **Frequência é do portal.** O `AdsController` continua decidindo *quanto* (suas travas), mas o SDK ignora pedido cedo demais (`adCooldown`)
   e o jogo segue sem anúncio. Não ligue o intersticial a botão de navegação (menu, configurações), regra do portal.
 - **Privacidade.** O SDK não tem flag de "anúncio não personalizado" nem de "público infantil": o portal serve o anúncio e cuida do

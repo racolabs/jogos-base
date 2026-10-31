@@ -69,8 +69,16 @@ export interface CrazyGamesOptions {
   onResume?: () => void;
   /** Quanto esperar o script e o init do SDK, em ms. Passou disso, segue sem anúncio. Padrão 8000. */
   loadTimeoutMs?: number;
-  /** Quanto esperar o anúncio começar (o leilão leva tempo), em ms. Padrão 20000. Depois disso o pedido conta como indisponível. */
+  /**
+   * Quanto esperar o intersticial começar (o leilão leva tempo), em ms. Padrão 20000. Depois disso o pedido conta como indisponível.
+   * O relógio para no `adStarted`: anúncio que começou nunca estoura.
+   */
   requestTimeoutMs?: number;
+  /**
+   * O mesmo para o premiado, em ms. Padrão 60000, mais alto de propósito: se o `adStarted` chegasse depois do tempo, o jogador veria o
+   * anúncio inteiro e ficaria sem o prêmio (a promessa já teria voltado `unavailable`). Só estoura se o SDK ficar mudo por 1 minuto.
+   */
+  rewardedRequestTimeoutMs?: number;
   /** Só testes. */
   win?: CrazyGamesWindow;
 }
@@ -316,11 +324,13 @@ export class CrazyGamesProvider implements AdProvider {
     this.safe(() => this.opts.onResume?.());
   }
 
-  private noteError(e: CrazyGamesError): void {
-    if (e.code === 'adsDisabled') {
-      this.off.add('interstitial');
-      this.off.add('rewarded');
-    } else if (e.code === 'adblock') this.off.add('rewarded');
+  /**
+   * Desliga por formato: `adsDisabled` num midgame não desliga o premiado (no modo offline só o premiado existe, segundo a doc do v3),
+   * e vice-versa. Bloqueador de anúncio derruba o premiado, que o portal bloqueia nesse caso.
+   */
+  private noteError(e: CrazyGamesError, format: FullscreenFormat): void {
+    if (e.code === 'adsDisabled') this.off.add(format);
+    else if (e.code === 'adblock') this.off.add('rewarded');
   }
 
   private requestAd(type: typeof MIDGAME | typeof REWARDED): Promise<AdResult> {
@@ -339,7 +349,9 @@ export class CrazyGamesProvider implements AdProvider {
         resolve(r);
       };
       // Se o anúncio não começa a tempo, o jogo segue; o fim real (adFinished/adError) ainda libera o próximo pedido.
-      const timer = setTimeout(() => settle('unavailable'), this.opts.requestTimeoutMs ?? 20000);
+      // O relógio para no adStarted (abaixo). Premiado espera mais, para não perder o prêmio de quem vai assistir.
+      const wait = format === 'rewarded' ? (this.opts.rewardedRequestTimeoutMs ?? 60000) : (this.opts.requestTimeoutMs ?? 20000);
+      const timer = setTimeout(() => settle('unavailable'), wait);
       const end = (r: AdResult) => {
         this.busy = false;
         this.resume();
@@ -353,7 +365,7 @@ export class CrazyGamesProvider implements AdProvider {
         },
         adFinished: () => end('finished'),
         adError: (e) => {
-          this.noteError(asError(e));
+          this.noteError(asError(e), format);
           end(started ? 'dismissed' : 'unavailable');
         },
       };

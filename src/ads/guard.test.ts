@@ -167,6 +167,54 @@ describe('guarda de SDK de anúncio', () => {
   });
 });
 
+describe('guarda: SDK do CrazyGames', () => {
+  const globals = (src: string, file = 'a.tsx') => findAdSdkInSource(src, file).filter((x) => x.kind === 'global').map((x) => [x.line, x.target]);
+
+  it('acusa o acesso ao global window.CrazyGames em todas as formas', () => {
+    const src = [
+      'await window.CrazyGames.SDK.init();',
+      "globalThis['CrazyGames'].SDK.game.gameplayStart();",
+      'const sdk = window?.CrazyGames?.SDK;',
+      'const { CrazyGames } = window;',
+      'CrazyGames.SDK.ad.requestAd("midgame", {});',
+    ].join('\n');
+    expect(globals(src)).toEqual([
+      [1, 'CrazyGames'],
+      [2, 'CrazyGames'],
+      [3, 'CrazyGames'],
+      [4, 'CrazyGames'],
+      [5, 'CrazyGames'],
+    ]);
+  });
+
+  it('acusa o script do portal e o pacote fora de src/ads', () => {
+    expect(findAdSdkInSource("s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';").map((x) => x.kind)).toEqual(['script']);
+    expect(findAdSdkInSource("import { sdk } from '@crazygames/sdk';").map((x) => x.kind)).toEqual(['import']);
+  });
+
+  it('não acusa o nome da classe, o perfil nem o texto de tela com a marca', () => {
+    const ok = [
+      "import { CrazyGamesProvider, CRAZYGAMES_PROFILE, crazyGamesFromEnv } from 'jogos-base/ads';",
+      'const ads = new CrazyGamesProvider();',
+      'activatePortal(CRAZYGAMES_PROFILE);',
+      "const msg = 'Jogue no CrazyGames';",
+      'const t = { pt: "Jogue no CrazyGames", en: `Play on CrazyGames` };',
+      'const view = <p>Jogue no CrazyGames</p>;',
+      "const link = 'Veja também no CrazyGames.com';",
+      '// window.CrazyGames só em comentário',
+    ].join('\n');
+    expect(findAdSdkInSource(ok, 'tela.tsx')).toEqual([]);
+    expect(findAdSdkInSource('<p>Jogue no CrazyGames</p>', 'index.html')).toEqual([]);
+  });
+
+  it('numa pasta de jogo: acusa window.CrazyGames em src/ e libera o texto de tela', () => {
+    const ruim = fakeGame({ 'src/portal.ts': 'window.CrazyGames?.SDK?.game.happytime();' });
+    expect(() => assertNoDirectAdSdk(join(ruim, 'src'))).toThrow(/portal\.ts:1 {2}usa o global CrazyGames/);
+    const bom = fakeGame({ 'src/tela.tsx': 'export const Aviso = () => <p>Jogue no CrazyGames</p>;', 'src/ads.ts': "import { CrazyGamesProvider } from 'jogos-base/ads';\nexport const p = new CrazyGamesProvider();" });
+    expect(() => assertNoDirectAdSdk(join(bom, 'src'))).not.toThrow();
+  });
+});
+
 describe('arquitetura da própria base', () => {
   it('nada fora de src/ads fala com SDK de anúncio', () => {
     expect(() => assertNoDirectAdSdk(join(import.meta.dirname, '..'), { allow: ['ads'] })).not.toThrow();
