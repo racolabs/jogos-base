@@ -59,6 +59,28 @@ export const AD_SDK_SCRIPT_HOSTS: readonly string[] = [
 /** Globais que as redes criam na página; o jogo não deve tocar neles. */
 export const AD_SDK_GLOBALS: readonly string[] = ['adsbygoogle', 'googletag'];
 
+/**
+ * Globais cujo nome também aparece em texto de tela ("Jogue no CrazyGames"): só vale o ACESSO ao global, não a palavra.
+ * Pega `window.CrazyGames`, `globalThis['CrazyGames']`, `CrazyGames.SDK`/`CrazyGames?.SDK` e `const { CrazyGames } = window`.
+ * Não pega `CrazyGamesProvider`, `CRAZYGAMES_PROFILE` nem a marca em string ou JSX.
+ */
+export const AD_SDK_GLOBAL_ACCESS: readonly { target: string; re: RegExp }[] = [
+  {
+    target: 'CrazyGames',
+    re: new RegExp(
+      [
+        // window.CrazyGames, window?.CrazyGames, window['CrazyGames'], window?.['CrazyGames']
+        String.raw`(?<![\w$])(?:window|globalThis|self|top|parent|global)\s*(?:\??\.\s*CrazyGames(?![\w$-])|\??\.?\s*\[\s*['"` + '`' + String.raw`]CrazyGames['"` + '`' + String.raw`]\s*\])`,
+        // CrazyGames.SDK solto (global implícito); não vale texto entre aspas nem caminho
+        String.raw`(?<![\w$.'"/-])CrazyGames\s*\??\.\s*SDK(?![\w$-])`,
+        // const { CrazyGames } = window
+        String.raw`\{[^}]*(?<![\w$])CrazyGames(?![\w$-])[^}]*\}\s*=\s*(?:window|globalThis|self|top|parent|global)(?![\w$])`,
+      ].join('|'),
+      'g',
+    ),
+  },
+];
+
 export interface AdSdkViolation {
   file: string;
   line: number;
@@ -187,6 +209,9 @@ function scanCode(raw: string, file: string, firstLine: number, found: AdSdkViol
     for (const m of code.matchAll(new RegExp(`(?<![\\w$/-])${g}(?![\\w$-])`, 'g'))) {
       found.push({ file, line: lineAt(code, m.index, firstLine), target: g, kind: 'global' });
     }
+  }
+  for (const { target, re } of AD_SDK_GLOBAL_ACCESS) {
+    for (const m of code.matchAll(re)) found.push({ file, line: lineAt(code, m.index, firstLine), target, kind: 'global' });
   }
 }
 

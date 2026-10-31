@@ -30,6 +30,60 @@ o anúncio nunca passa do espaço, o que evita corte (política do AdSense). Esc
 (50 ou 60 px, por exemplo) e crie no painel do AdSense um bloco do tipo "fixo" com o mesmo tamanho; o tamanho do
 bloco no painel e o do `bannerSize` devem coincidir. O mesmo `bannerSize` vale para todos os `bannerSlots`.
 
+## CrazyGames (portal)
+
+`CrazyGamesProvider` (`crazygames.ts`) é o único código que fala com o SDK HTML5 v3 do portal. O jogo continua só com `AdProvider`.
+
+| `AdProvider` | SDK do CrazyGames |
+| --- | --- |
+| `showInterstitial()` | `ad.requestAd('midgame', callbacks)`; `true` só com `adFinished` |
+| `showRewarded()` | `ad.requestAd('rewarded', callbacks)`; `earned` só com `adFinished`; `adError` depois de começar = `dismissed`, antes = `unavailable` (nunca premia) |
+| `showBanner(placement, slot)` | cria um contêiner no `slot` e chama `banner.requestResponsiveBanner(id)`; `hideBanner` chama `clearBanner` |
+| `preload` / `isReady` | o SDK não pré-carrega: pronto = SDK ativo, formato não desligado pelo portal e nenhum anúncio em andamento |
+| `onPause` / `onResume` | no `adStarted` e no `adFinished`/`adError` (só quando o anúncio de fato começou, para não calar o som à toa) |
+
+- **SDK ausente = no-op seguro.** Script bloqueado, domínio que não é do portal (`environment: 'disabled'`), `init()` que falha ou passa de
+  `loadTimeoutMs` (8 s): nenhum anúncio, nenhum erro, o jogo segue. `adsDisabled` (Basic Launch, modo infantil) e bloqueador de anúncio
+  escondem os formatos desligados (`isReady` passa a `false`), então o jogo não oferece botão de premiado sem efeito.
+  O `adsDisabled` desliga **só o formato** que recebeu o erro (no modo offline só o premiado existe); o bloqueador derruba o premiado.
+- **Um anúncio por vez** (o portal proíbe encadear). Pedido enquanto outro corre volta `false`/`unavailable`. Se o anúncio não começa em
+  `requestTimeoutMs` (20 s; premiado: `rewardedRequestTimeoutMs`, 60 s), o jogo segue; o fim real do anúncio libera o pedido seguinte. O relógio
+  para no `adStarted`, então anúncio que começou nunca estoura. O premiado espera mais porque, se o `adStarted` viesse depois do prazo, o
+  jogador veria o anúncio e ficaria sem prêmio.
+- **Frequência é do portal.** O `AdsController` continua decidindo *quanto* (suas travas), mas o SDK ignora pedido cedo demais (`adCooldown`)
+  e o jogo segue sem anúncio. Não ligue o intersticial a botão de navegação (menu, configurações), regra do portal.
+- **Privacidade.** O SDK não tem flag de "anúncio não personalizado" nem de "público infantil": o portal serve o anúncio e cuida do
+  consentimento e do modo infantil. Este provider ignora `ConsentProvider` e o que não é política de privacidade, e só entrega ao SDK o formato
+  e funções de retorno. O contrato (`contract.test.ts`, `crazyGamesHarness`) reprova qualquer dado a mais no pedido, na URL ou nos atributos
+  do `<script>`. Em outras palavras: o que **podemos** garantir é que nada do jogador sai por aqui; a personalização em si é do portal.
+
+### Eventos do portal (`portalOf`)
+
+O portal mede carregamento e jogo. O jogo chama sempre `portalOf(ads)`; sem portal, o objeto não faz nada, então o jogo não conhece o SDK:
+
+```ts
+const portal = portalOf(ads);
+portal.gameplayStart(); // iniciou ou retomou a partida (o primeiro mede o tamanho do download)
+portal.gameplayStop();  // fim de partida, menu, pausa (não na troca de aba: o portal cuida)
+portal.happyTime();     // conquista rara; use pouco
+const off = portal.onAudioMutedChange((muted) => setMuted(muted)); // portal.audioMuted() vale mais que o som do jogo
+```
+
+### Composição do build do portal
+
+O jogo escolhe tudo num lugar só, pelo ambiente do build (`VITE_PORTAL=crazygames`):
+
+```ts
+const profile = portalProfileFromEnv(import.meta.env);          // null fora do portal
+const ads = crazyGamesFromEnv(import.meta.env, { onPause, onResume }); // null fora do portal
+if (profile && ads) activatePortal(profile, ads.portal);        // antes de montar a interface
+// <App adProvider={ads ?? undefined} />
+```
+
+Com o perfil ativo: `MoreGames` não renderiza, `useInstall` fica `unsupported` (cartão e passo a passo do iOS somem), `Feedback` cala som
+quando o portal pede silêncio. `portalBlocks('serviceWorker' | 'externalLinks')` é para o build e para o jogo decidirem (service worker
+desligado, sem links para fora). O guard `assertNoDirectAdSdk` barra o global `CrazyGames` e `sdk.crazygames.com` fora de `src/ads`.
+
 ## Consentimento (`ConsentProvider`)
 
 Anúncio personalizado só com consentimento explícito de adulto; sem isso, tudo sai não personalizado. O jogo e o
@@ -90,7 +144,7 @@ declaram devolver um provider. O mesmo roteiro (init, banner, intersticial, prem
    também reprova (escaparia do contrato). Fábrica com argumentos obrigatórios: declare o tipo de retorno.
 2. O teste falha em "todo provider tem harness" até você registrar um harness em `HARNESSES` (`contract.test.ts`), pelo nome do
    export. O harness diz como observar o que a rede recebe: `adsenseHarness` lê a fila e a flag de personalização;
-   `offlineHarness` serve a quem não fala com rede (e reprova se passar a falar). Para uma rede nova, o harness precisa ver o
+   `offlineHarness` serve a quem não fala com rede (e reprova se passar a falar); `crazyGamesHarness` observa as chamadas ao SDK do portal (que não tem flag de personalização: o pedido só pode levar o formato e funções). Para uma rede nova, o harness precisa ver o
    pedido de banner, intersticial e premiado e dizer se cada um saiu personalizado; harness que não vê pedido nenhum reprova
    ("teste cego"). Fábrica que só devolve classes já cobertas (como `adSenseFromEnv`) dispensa harness próprio.
 3. Parâmetro novo para a rede (atributo, chave, query) reprova até entrar na lista permitida (`ALLOWED_*` no teste). Antes de

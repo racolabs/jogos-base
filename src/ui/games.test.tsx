@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { activatePortal, CRAZYGAMES_PROFILE } from '../ads/portal.ts';
 import { GAMES, MoreGames } from './games.tsx';
 
 afterEach(cleanup);
@@ -26,5 +27,19 @@ describe('Mais jogos', () => {
       expect(screen.getByRole('navigation', { name: 'Mais jogos da RacoLabs' }).querySelectorAll('a')).toHaveLength(GAMES.length - 1);
       cleanup();
     }
+  });
+});
+
+describe('Mais jogos em portal', () => {
+  afterEach(() => activatePortal(null));
+
+  it('portal que proíbe divulgação: a faixa some e, sem portal, volta', () => {
+    activatePortal(CRAZYGAMES_PROFILE);
+    const { container } = render(<MoreGames lang="pt" current="paciencia" />);
+    expect(container.querySelector('nav')).toBeNull();
+    cleanup();
+    activatePortal(null);
+    render(<MoreGames lang="pt" current="paciencia" />);
+    expect(screen.getByRole('navigation', { name: 'Mais jogos da RacoLabs' })).toBeTruthy();
   });
 });

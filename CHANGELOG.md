@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0
+
+Adaptador do CrazyGames atrás do `AdProvider`, para gerar o build do portal sem mudar o jogo. (#44)
+
+- `CrazyGamesProvider` (`jogos-base/ads`): SDK HTML5 v3 do portal só por aqui, atrás da interface. Intersticial = `midgame`, premiado = `rewarded` (prêmio só no `adFinished`; `adError` nunca premia), banner responsivo no espaço que o jogo reserva. Carrega `sdk.crazygames.com/crazygames-sdk-v3.js`, espera o `init()` e só usa o SDK nos ambientes `crazygames` e `local`. Sem o SDK (script bloqueado, domínio fora do portal, tempo esgotado) tudo vira no-op seguro. Um anúncio por vez; `adsDisabled` (Basic Launch, modo infantil) desliga só o formato que recebeu o erro e o bloqueador de anúncio derruba o premiado, escondendo o botão; o tempo de espera do premiado é maior (60 s) e para no `adStarted`; `onPause`/`onResume` saem quando o anúncio de fato começa e termina.
+- `AdProvider.portal` (opcional) e `portalOf(provider)`: `loadingStart/Stop`, `gameplayStart/Stop`, `happyTime`, `audioMuted()` e `onAudioMutedChange`. Providers sem portal seguem iguais; `portalOf` devolve um objeto que não faz nada.
+- Perfil do portal: `CRAZYGAMES_PROFILE`, `activatePortal`, `portalBlocks`, `portalProfileFromEnv` e `crazyGamesFromEnv` (`VITE_PORTAL=crazygames`). Com o perfil ativo, `MoreGames` some, `useInstall` fica `unsupported` e o `Feedback` cala o som quando o portal pede silêncio, sem o código das telas mudar.
+- Contrato de anúncio: harness do CrazyGames. O SDK não tem flag de personalização, então o pedido leva só o formato e funções de retorno; qualquer dado a mais reprova. `assertNoDirectAdSdk` passa a barrar também o acesso ao global `CrazyGames` (`window.CrazyGames`, `CrazyGames.SDK`, desestruturação) fora de `src/ads`; a marca em texto de tela, `CrazyGamesProvider` e `CRAZYGAMES_PROFILE` não reprovam.
+- Novos exports: `CRAZYGAMES_SCRIPT`, tipos `CrazyGamesSdk`, `CrazyGamesOptions`, `PortalEvents`, `PortalProfile`, `PortalFeature`.
+
 ## 0.12.1
 
 Ajuste do módulo `seo` para os jogos que adotaram a 0.12.0 sem regressão de SEO. Tudo é opção de `SeoGame`; sem elas o resultado é o mesmo da 0.12.0. (Refs #28)

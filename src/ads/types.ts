@@ -2,6 +2,8 @@
  * Contrato que todo fornecedor de anúncio cumpre (AdMob, AdSense/H5, portais, "sem anúncio").
  * O jogo fala só com esta interface: trocar de rede é trocar a implementação.
  */
+import type { PortalEvents } from './portal.ts';
+
 export type FullscreenFormat = 'interstitial' | 'rewarded';
 
 /** Onde um banner pode aparecer. Nunca sobre o tabuleiro. */
@@ -22,6 +24,11 @@ export const DEFAULT_AD_POLICY: Readonly<AdPolicy> = Object.freeze({ nonPersonal
 
 export interface AdProvider {
   readonly id: string;
+  /**
+   * Opcional. Só provider de portal (CrazyGames...) tem: eventos de carregamento e de jogo que o portal mede.
+   * O jogo não lê isto direto: usa `portalOf(provider)`, que devolve um objeto sem efeito quando não há portal.
+   */
+  readonly portal?: PortalEvents;
   init(policy: AdPolicy): Promise<void>;
   /** Pede um anúncio com antecedência. Nunca trava o jogo esperando. */
   preload(format: FullscreenFormat): Promise<void>;

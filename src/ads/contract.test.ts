@@ -22,6 +22,7 @@ import {
   AdSenseProvider,
   AdsController,
   AD_DEFAULTS,
+  CrazyGamesProvider,
   DEFAULT_AD_POLICY,
   FakeAdProvider,
   FakeConsentProvider,
@@ -180,6 +181,8 @@ interface RunOptions {
 }
 
 interface Harness {
+  /** Valor de `type` no pedido de intersticial que o harness vê na rede. Padrão 'next' (AdSense). */
+  interstitialType?: string;
   /** false: a implementação não fala com rede nenhuma (nunca há pedido a personalizar). */
   network: boolean;
   /** Cria a implementação, exercita init + banner + intersticial + premiado e devolve o que a rede recebeu. */
@@ -195,6 +198,7 @@ function resetPage() {
   document.head.innerHTML = '';
   document.body.innerHTML = '';
   delete win().adsbygoogle;
+  delete (window as unknown as { CrazyGames?: unknown }).CrazyGames;
 }
 
 /** Banner + intersticial + premiado, o mesmo roteiro para todas as implementações. */
@@ -257,6 +261,61 @@ function adsenseHarness(Cls: new (o: ConstructorParameters<typeof AdSenseProvide
   };
 }
 
+type CgCallbacks = Record<string, unknown> & { adStarted?: () => void; adFinished?: () => void };
+
+/**
+ * CrazyGames: o SDK não tem flag de personalização, então o contrato aqui é o mais forte que dá para provar: o pedido leva SÓ o formato
+ * (`midgame`/`rewarded`) e funções de retorno. Qualquer dado a mais (chave não função, argumento extra) conta como pedido
+ * "personalizado" e como vazamento de segmentação. O script do portal chega pelo `<script>` que o provider cria (atributos conferidos).
+ */
+function crazyGamesHarness(Cls: new (o: ConstructorParameters<typeof CrazyGamesProvider>[0]) => AdProvider = CrazyGamesProvider): Harness {
+  return {
+    network: true,
+    interstitialType: 'midgame',
+    async run(s, o = {}) {
+      resetPage();
+      const requests: AdRequest[] = [];
+      const payloads: unknown[] = [];
+      const pending: Record<string, CgCallbacks | undefined> = {};
+      const sdk = {
+        environment: 'crazygames',
+        init: async () => {},
+        ad: {
+          hasAdblock: async () => false,
+          requestAd(type: string, callbacks?: CgCallbacks, ...extra: unknown[]) {
+            pending[type] = callbacks;
+            const data = Object.entries(callbacks ?? {}).filter(([, v]) => typeof v !== 'function');
+            payloads.push({ type, ...Object.fromEntries(data), ...(extra.length > 0 ? { extra } : {}) });
+            requests.push({ kind: type === 'midgame' ? 'interstitial' : 'rewarded', personalized: data.length > 0 || extra.length > 0 });
+          },
+        },
+        banner: {
+          requestResponsiveBanner: async (_id: string, ...extra: unknown[]) => {
+            payloads.push(extra.length > 0 ? { extra } : {});
+            requests.push({ kind: 'banner', personalized: extra.length > 0 });
+          },
+          clearBanner() {},
+        },
+        game: { gameplayStart() {}, gameplayStop() {}, loadingStart() {}, loadingStop() {}, happytime() {}, settings: { muteAudio: false }, addSettingsChangeListener() {}, removeSettingsChangeListener() {} },
+      };
+      const ads = (o.wrap ?? ((a) => a))(new Cls({ win: window as never }));
+      const started = ads.init(s.policy);
+      await tick();
+      // O script do portal "carrega": o SDK aparece na página e o provider é avisado.
+      (window as unknown as { CrazyGames?: unknown }).CrazyGames = { SDK: sdk };
+      document.querySelector('script')?.dispatchEvent(new Event('load'));
+      await started;
+      s.beforeShow?.();
+      const done = (type: string) => () => {
+        pending[type]?.adStarted?.();
+        pending[type]?.adFinished?.();
+      };
+      await (o.drive ?? exercise)(ads, { interstitial: done('midgame'), rewarded: done('rewarded') });
+      return { requests, outbound: outboundFromPage(payloads) };
+    },
+  };
+}
+
 /** Implementações sem rede (nada a personalizar): provamos que continuam sem rede. */
 function offlineHarness(make: () => AdProvider): Harness {
   return {
@@ -282,6 +341,7 @@ function offlineHarness(make: () => AdProvider): Harness {
  */
 const HARNESSES: Record<string, Harness> = {
   AdSenseProvider: adsenseHarness(),
+  CrazyGamesProvider: crazyGamesHarness(),
   NoAdsProvider: offlineHarness(() => new NoAdsProvider()),
   FakeAdProvider: offlineHarness(() => new FakeAdProvider()),
 };
@@ -489,7 +549,7 @@ async function segmentationViolations(h: Harness): Promise<string[]> {
       const sent = JSON.stringify([calls.filter((c) => c.method !== 'init'), outbound.payloads, outbound.attributes]);
       for (const c of CANARIES) if (sent.includes(c)) out.push(`${label}: o valor ${c} do estado do jogador chegou ao provider/rede`);
       if (!calls.some((c) => c.method === 'showBanner')) out.push(`${label}: o roteiro não chegou ao banner (teste cego)`);
-      if (h.network && !outbound.payloads.some((p) => (p as { type?: string } | null)?.type === 'next')) out.push(`${label}: o AdsController não chegou a pedir o intersticial (teste cego)`);
+      if (h.network && !outbound.payloads.some((p) => (p as { type?: string } | null)?.type === (h.interstitialType ?? 'next'))) out.push(`${label}: o AdsController não chegou a pedir o intersticial (teste cego)`);
     }
   }
   return out;
@@ -503,8 +563,8 @@ afterEach(resetPage);
 
 describe('contrato de anúncio: descoberta', () => {
   it('acha as implementações exportadas (não ficou cego)', () => {
-    expect(discoverFromExports(api as Record<string, unknown>)).toEqual(expect.arrayContaining(['AdSenseProvider', 'NoAdsProvider', 'FakeAdProvider']));
-    expect(declaredInSources(readAdSources(ADS_DIR)).classes).toEqual(expect.arrayContaining(['AdSenseProvider', 'NoAdsProvider', 'FakeAdProvider']));
+    expect(discoverFromExports(api as Record<string, unknown>)).toEqual(expect.arrayContaining(['AdSenseProvider', 'CrazyGamesProvider', 'NoAdsProvider', 'FakeAdProvider']));
+    expect(declaredInSources(readAdSources(ADS_DIR)).classes).toEqual(expect.arrayContaining(['AdSenseProvider', 'CrazyGamesProvider', 'NoAdsProvider', 'FakeAdProvider']));
   });
 
   it('todo provider (exportado, declarado nos fontes ou fábrica) tem harness e está no índice', () => {
@@ -636,6 +696,43 @@ describe('contrato de anúncio: sem consentimento, nada personalizado', () => {
       }
     }
     expect((await personalizationViolations(offlineHarness(() => new Sneaky()), noConsentScenarios())).length).toBeGreaterThan(0);
+  });
+});
+
+describe('contrato de anúncio: CrazyGames (SDK sem flag de personalização)', () => {
+  type CgSdkProbe = { CrazyGames: { SDK: { ad: { requestAd: (type: string, cb: Record<string, unknown>) => void } } } };
+
+  it('o harness enxerga o formato e as funções de retorno, e nada mais (controle positivo: o pedido normal sai limpo)', async () => {
+    const { requests, outbound } = await HARNESSES.CrazyGamesProvider!.run({ label: 'controle', policy: ADULT_GAME, consent: new FakeConsentProvider('personalized') });
+    expect(requests.map((r) => r.kind).sort()).toEqual(['banner', 'interstitial', 'rewarded']);
+    expect(requests.every((r) => !r.personalized)).toBe(true);
+    expect(outbound.payloads).toEqual(expect.arrayContaining([{ type: 'midgame' }, { type: 'rewarded' }]));
+  });
+
+  it('reprova provider que manda dado do jogador no pedido do portal (auto-teste)', async () => {
+    // Defeituoso de propósito: guarda a política recebida e a manda junto com o pedido de midgame.
+    class Forwards extends CrazyGamesProvider {
+      private seen: unknown;
+      override async init(policy?: AdPolicy) {
+        if (policy) this.seen = policy;
+        return super.init(policy);
+      }
+      override async showInterstitial() {
+        await this.init();
+        (window as unknown as CgSdkProbe).CrazyGames.SDK.ad.requestAd('midgame', { kv: this.seen, adFinished: () => {} });
+        return true;
+      }
+    }
+    const h = crazyGamesHarness(Forwards);
+    expect((await personalizationViolations(h, [{ label: 'jogo adulto', policy: ADULT_GAME }])).join('\n')).toContain('pedido de interstitial saiu personalizado');
+    const violations = (await segmentationViolations(h)).join('\n');
+    expect(violations).toContain('parâmetro novo para a rede: kv');
+  });
+
+  it('reprova script do portal com atributo ou parâmetro novo (auto-teste)', () => {
+    const attrs = (name: string, value: string) => ({ payloads: [], attributes: [{ tag: 'script', name, value }] });
+    expect(targetingLeaks(attrs('data-user', 'x')).join('\n')).toContain('atributo novo para a rede');
+    expect(targetingLeaks(attrs('src', 'https://sdk.crazygames.com/crazygames-sdk-v3.js?level=7')).join('\n')).toContain('parâmetro novo na URL do script: level');
   });
 });
 

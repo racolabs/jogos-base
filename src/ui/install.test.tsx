@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { activatePortal, CRAZYGAMES_PROFILE } from '../ads/portal.ts';
 import { InstallCard, initialInstallState, installSnoozed, INSTALL_SNOOZE_MS, isIOS, useInstall, type InstallEnv } from './install.tsx';
 
 afterEach(cleanup);
@@ -95,5 +96,19 @@ describe('InstallCard', () => {
     expect(installSnoozed(null, 1000)).toBe(false);
     expect(installSnoozed(1000, 1000 + INSTALL_SNOOZE_MS - 1)).toBe(true);
     expect(installSnoozed(1000, 1000 + INSTALL_SNOOZE_MS)).toBe(false);
+  });
+});
+
+describe('instalação em portal', () => {
+  afterEach(() => activatePortal(null));
+
+  it('portal que proíbe instalar: nunca oferece, nem no iPhone nem com o pedido do navegador', () => {
+    activatePortal(CRAZYGAMES_PROFILE);
+    expect(initialInstallState(env({ userAgent: IPHONE }))).toBe('unsupported');
+    const { result } = renderHook(() => useInstall(env()));
+    const e = new Event('beforeinstallprompt', { cancelable: true });
+    act(() => void window.dispatchEvent(e));
+    expect(e.defaultPrevented).toBe(false);
+    expect(result.current.state).toBe('unsupported');
   });
 });
