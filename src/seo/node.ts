@@ -47,7 +47,8 @@ export interface PrerenderResult {
 export function navigateFallbackDenylist(game: Pick<SeoGame, 'articles' | 'extraPages'>): RegExp[] {
   const esc = (p: string) => p.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
   const paths = [...(game.articles ?? []).flatMap((a) => Object.values(a.paths)), ...(game.extraPages ?? []).flatMap((e) => Object.values(e.paths))];
-  return paths.map((p) => new RegExp(`^${esc(p)}?$`));
+  // O Workbox compara caminho + query: `?utm_...` não pode fazer a página cair no index.html.
+  return paths.map((p) => new RegExp(`^${esc(p)}?(?:\?.*)?$`));
 }
 
 /**

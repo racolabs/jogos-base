@@ -212,6 +212,7 @@ describe('robots.txt, llms.txt, sitemap e service worker', () => {
     expect(blocked('/pt/como-jogar/')).toBe(true);
     expect(blocked('/en/how-to-play')).toBe(true);
     expect(blocked('/pt/privacidade/')).toBe(true);
+    expect(blocked('/pt/como-jogar/?utm_source=x')).toBe(true);
     expect(blocked('/pt/')).toBe(false);
     expect(blocked('/pt/dificil/')).toBe(false);
     expect(blocked('/pt/como-jogar/x/')).toBe(false);
