@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.0
+
+Navegação de quem joga: `HelpMore`, o "Ajuda e mais" do menu/configurações. Opcional; quem não usa não muda nada. As páginas "Como jogar" e "Estratégias" e as variações só tinham link no HTML pré-renderizado, que some quando o jogo carrega.
+
+- `HelpMore` (`jogos-base/ui`): links para as páginas de conteúdo (`articles`), as variações com página própria (`variants`), a privacidade (opcional, via `privacy`; `PRIVACY_PATHS` é o caminho dos jogos RacoLabs) e "Outros jogos" (reaproveita `MoreGames`). Textos em pt/en, alvos de toque de 44 px, foco visível e aviso "(abre em nova aba)" para leitor de tela. `helpLinksOf(game, lang, privacy?)` devolve os mesmos links sem React.
+- Fonte única: os caminhos saem dos mesmos `articles` e `variants` que o `seo` usa no build; o jogo passa esses objetos, sem repetir slug. Variações com `llms: false` (dias do arquivo) ficam de fora, como no `seo`.
+- Sempre em nova aba (`target="_blank" rel="noopener"`): as páginas são documentos fora do app, e abrir na mesma aba descartaria a partida em andamento. O `onOpen(kind, alvo)` opcional serve à métrica do jogo; nenhum dado novo é coletado e nada é carregado de outro host (CSP e anúncios intactos).
+- Perfil de portal: com `externalLinks` bloqueado (CrazyGames) o componente inteiro some, porque o pacote do portal não leva as páginas; com `crossPromo` bloqueado some só "Outros jogos".
+- `SeoVariant.label` (opcional): rótulo curto para o menu ("Difícil"). Não muda nenhuma página gerada; sem ele vale o `title`.
+- `SHELL_CSS`: estilos `rl-help*`, `rl-sr` (texto só para leitor de tela) e foco visível nos cartões de `MoreGames`.
+
 ## 0.14.0
 
 SEO, onda 1: conteúdo indexável, links cruzados e leitura por IA. Tudo é opção nova de `SeoGame`; sem elas o resultado só muda no `robots.txt` (robôs nomeados) e no novo `llms.txt`.

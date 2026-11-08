@@ -22,6 +22,8 @@ export interface SeoVariant {
   /** Trecho da URL, sem barras: `dificil` vira `/pt/dificil/`. Letras minúsculas, números e hífen. */
   slug: string;
   title: Localized;
+  /** Rótulo curto para o menu do jogo (`HelpMore`), ex.: "Difícil". Padrão: o `title`. Não muda nenhuma página gerada. */
+  label?: Localized;
   description: Localized;
   /** Texto de ajuda desta variação (passos curtos). Se faltar, vale o do jogo. */
   help?: Record<Lang, readonly string[]>;
