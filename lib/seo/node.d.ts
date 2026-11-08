@@ -29,7 +29,7 @@ export interface PrerenderResult {
  * Caminhos que o service worker do PWA **não** deve trocar pelo `index.html` do jogo (páginas de conteúdo e as `extraPages`,
  * como a privacidade). Use em `VitePWA({ workbox: { navigateFallbackDenylist: navigateFallbackDenylist(game) } })`.
  */
-export declare function navigateFallbackDenylist(game: SeoGame): RegExp[];
+export declare function navigateFallbackDenylist(game: Pick<SeoGame, 'articles' | 'extraPages'>): RegExp[];
 /**
  * Escreve páginas por idioma e variação, páginas de conteúdo, sitemap.xml (com as `extraPages` do jogo), robots.txt,
  * llms.txt e (sem `shareImage`) as imagens SVG.

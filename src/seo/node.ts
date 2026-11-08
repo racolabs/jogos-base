@@ -44,7 +44,7 @@ export interface PrerenderResult {
  * Caminhos que o service worker do PWA **não** deve trocar pelo `index.html` do jogo (páginas de conteúdo e as `extraPages`,
  * como a privacidade). Use em `VitePWA({ workbox: { navigateFallbackDenylist: navigateFallbackDenylist(game) } })`.
  */
-export function navigateFallbackDenylist(game: SeoGame): RegExp[] {
+export function navigateFallbackDenylist(game: Pick<SeoGame, 'articles' | 'extraPages'>): RegExp[] {
   const esc = (p: string) => p.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
   const paths = [...(game.articles ?? []).flatMap((a) => Object.values(a.paths)), ...(game.extraPages ?? []).flatMap((e) => Object.values(e.paths))];
   return paths.map((p) => new RegExp(`^${esc(p)}?$`));
