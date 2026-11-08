@@ -30,11 +30,23 @@ describe('lib/ compilada do seo/node', () => {
     }
   }, 60_000);
 
-  it('o export aponta para JS e tipos que existem', () => {
+  it('o export aponta para JS e tipos que existem (seo/node e daily/node)', () => {
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { exports: Record<string, { default: string; types: string }>; files: string[] };
-    const e = pkg.exports['./seo/node']!;
-    expect(existsSync(join(root, e.default))).toBe(true);
-    expect(existsSync(join(root, e.types))).toBe(true);
+    for (const key of ['./seo/node', './daily/node']) {
+      const e = pkg.exports[key]!;
+      expect(existsSync(join(root, e.default)), key).toBe(true);
+      expect(existsSync(join(root, e.types)), key).toBe(true);
+    }
     expect(pkg.files).toContain('lib');
+  });
+});
+
+describe('daily/node', () => {
+  it('a semente compilada dá a mesma sequência do código-fonte (o build do jogo e o navegador geram o mesmo desafio)', async () => {
+    const compiled = (await import('../../lib/daily/index.js')) as typeof import('../daily/index.ts');
+    const source = await import('../daily/index.ts');
+    const a = compiled.dailyRandom('sudoku', '2026-11-08');
+    const b = source.dailyRandom('sudoku', '2026-11-08');
+    for (let i = 0; i < 20; i++) expect(a()).toBe(b());
   });
 });

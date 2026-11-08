@@ -1,7 +1,7 @@
 import { LANGS, localeOf, type Lang } from '../i18n/index.ts';
-import { langTagOf } from './pages.ts';
-import { jsonForScript, videoGameJsonLd } from './jsonld.ts';
-import type { SeoGame, SeoPage } from './types.ts';
+import { GUIDES_TITLE, langTagOf } from './pages.ts';
+import { breadcrumbJsonLd, jsonForScript, videoGameJsonLd } from './jsonld.ts';
+import type { SeoGame, SeoLink, SeoPage } from './types.ts';
 
 export const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -39,17 +39,24 @@ export function headTags(game: SeoGame, page: SeoPage): string {
     ...(game.themeColor ? [`<meta name="theme-color" content="${escapeHtml(game.themeColor)}">`] : []),
     `<script type="application/ld+json">${jsonForScript(videoGameJsonLd(game, page))}</script>`,
   ];
+  const crumbs = breadcrumbJsonLd(page.breadcrumb);
+  if (crumbs) lines.push(`<script type="application/ld+json">${jsonForScript(crumbs)}</script>`);
   return lines.join('\n    ');
 }
 
-/** Texto que já está no HTML inicial: título, descrição, introdução, ajuda e links. O app troca isso quando carrega. */
+const linkList = (links: readonly SeoLink[]) => `<ul>${links.map((l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.text)}</a></li>`).join('')}</ul>`;
+
+/**
+ * Texto que já está no HTML inicial: título, descrição, introdução, ajuda, HTML da variação, guias, outros jogos e links.
+ * O app troca isso quando carrega.
+ */
 export function bodyContent(page: SeoPage): string {
   const steps = page.help.map((s) => `<li>${escapeHtml(s)}</li>`).join('');
   const intro = page.intro ? `<p>${escapeHtml(page.intro)}</p>` : '';
-  const links = page.links.length
-    ? `<nav data-seo="links"><ul>${page.links.map((l) => `<li><a href="${escapeHtml(l.href)}">${escapeHtml(l.text)}</a></li>`).join('')}</ul></nav>`
-    : '';
-  return `<main data-seo="prerendered"><h1>${escapeHtml(page.h1)}</h1><p>${escapeHtml(page.description)}</p>${intro}<h2>${escapeHtml(page.helpTitle)}</h2><ol>${steps}</ol>${links}</main>`;
+  const guides = page.guides.length ? `<nav data-seo="guides"><h2>${GUIDES_TITLE[page.lang]}</h2>${linkList(page.guides)}</nav>` : '';
+  const others = page.others.length ? `<nav data-seo="others"><h2>${escapeHtml(page.othersTitle)}</h2>${linkList(page.others)}</nav>` : '';
+  const links = page.links.length ? `<nav data-seo="links">${linkList(page.links)}</nav>` : '';
+  return `<main data-seo="prerendered"><h1>${escapeHtml(page.h1)}</h1><p>${escapeHtml(page.description)}</p>${intro}<h2>${escapeHtml(page.helpTitle)}</h2><ol>${steps}</ol>${page.html ?? ''}${guides}${others}${links}</main>`;
 }
 
 export interface RenderOptions {

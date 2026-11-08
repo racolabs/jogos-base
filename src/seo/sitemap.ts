@@ -17,4 +17,9 @@ export function sitemapXml(pages: readonly SitemapEntry[], lastmod?: string): st
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`;
 }
 
-export const robotsTxt = (origin: string): string => `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`;
+/** Robôs de busca e de IA nomeados no robots.txt (o `*` já libera; o nome deixa a decisão explícita). */
+export const ALLOWED_BOTS = ['Googlebot', 'Bingbot', 'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'ClaudeBot', 'Claude-SearchBot', 'Google-Extended', 'Applebot-Extended'] as const;
+
+/** robots.txt: libera tudo, nomeia os robôs de busca e de IA e aponta para o sitemap (e para o `llms.txt`, num comentário). */
+export const robotsTxt = (origin: string): string =>
+  `User-agent: *\nAllow: /\n\n${ALLOWED_BOTS.map((b) => `User-agent: ${b}\nAllow: /\n`).join('\n')}\n# Resumo para IA: ${origin}/llms.txt\nSitemap: ${origin}/sitemap.xml\n`;
