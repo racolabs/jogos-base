@@ -51,13 +51,46 @@ export const game: SeoGame = {
 | `gamePlatform` | Texto ou lista (`['Web browser', 'Android']`) em `gamePlatform` no JSON-LD. Sem ela, o campo não sai. |
 | `extraPages` | Páginas que o jogo gera por fora (ex.: `/pt/privacidade/`). O módulo **não** escreve o HTML delas: só as põe no `sitemap.xml`, com `hreflang` das tags e `x-default` do `defaultLocale`. Cada caminho: `/<idioma>/<nome>/`, minúsculas, barra no fim, sem repetir página existente. Quem usa `sitemapXml` direto soma `extraEntriesFor(game)` a `pagesFor(game)`; o `prerender` já faz isso. |
 
+## Conteúdo, links cruzados e IA (0.14.0)
+
+Também opcionais:
+
+| Opção | Efeito |
+| --- | --- |
+| `articles` | Páginas de conteúdo (regras, estratégias, perguntas), uma por idioma: `{ paths: { pt: '/pt/como-jogar/', en: '/en/how-to-play/' }, text: { pt: { title, label, description, intro, sections: [{ heading, paragraphs, list, ordered }], faq: [{ q, a }] }, en: ... } }`. O módulo escreve o HTML inteiro, **sem o jogo e sem JavaScript**: head completo, trilha visível, botão "Jogar", seções, perguntas visíveis, links para as outras páginas, as variações e os outros jogos. Dados estruturados: `Article`, `BreadcrumbList` e `FAQPage` (só com `faq`). Entram no sitemap e no `llms.txt`, e as páginas do jogo ganham a lista "Guias". O caminho pode mudar por idioma; não pode repetir outra página. |
+| `otherGames` | Outros jogos (`{ id, url: { pt, en }, name, blurb }`), linkados em todas as páginas ("Outros jogos"). O próprio `id` sai da lista. Os jogos RacoLabs passam `RACOLABS_GAMES` (de `jogos-base/seo/node`). |
+| `otherGamesTitle` | Título dessa lista. Padrão: "Outros jogos" / "More games". |
+| `studio` | Primeiro degrau do `BreadcrumbList` (`RACOLABS_STUDIO`: RacoLabs, `https://racolabs.app/` e `/en/`). Com ele, toda página ganha trilha estúdio › jogo › página. |
+| `articleTheme` | Cores das páginas de conteúdo (`accent`, `accentDark`, opcionais `onAccent`, `onAccentDark`) e `icon`. Padrão: a casca comum. |
+| `variants[].slug` | Pode ter subpastas: `diario/2026-11-08` vira `/pt/diario/2026-11-08/`. |
+| `variants[].html` | HTML extra depois da ajuda, por idioma (ex.: a grade do Sudoku do dia). **Não é escapado**: só texto gerado pelo jogo no build; `<script>` é recusado. |
+| `variants[].llms` | `false` tira a variação do `llms.txt` e dos links das páginas de conteúdo (ex.: cada dia do arquivo). Continua no sitemap. |
+
+Toda página do jogo leva `BreadcrumbList` num segundo `<script type="application/ld+json">`, depois do `VideoGame` (sem `studio` e na página inicial, não há trilha: um degrau só não vale).
+
+### Service worker
+
+O `navigateFallback` do Workbox (padrão do `vite-plugin-pwa`) troca **qualquer** navegação pelo `index.html` do jogo, o que esconde as páginas de conteúdo e a privacidade de quem já tem o jogo instalado. Passe a lista do módulo:
+
+```ts
+import { navigateFallbackDenylist } from 'jogos-base/seo/node';
+import { game } from './scripts/seo.config.mjs';
+VitePWA({ workbox: { navigateFallbackDenylist: navigateFallbackDenylist(game) } });
+```
+
+### Desafio do dia no build
+
+`jogos-base/daily/node` é o mesmo `jogos-base/daily` compilado em JS, para o script de prerender gerar no Node o mesmo desafio que o navegador gera (`dailyRandom(jogo, dia)`).
+
 ## O que sai
 
 | Arquivo | Conteúdo |
 | --- | --- |
 | `/<lang>/index.html`, `/<lang>/<slug>/index.html` | `index.html` do build com `<html lang>`, head completo e `<h1>`, descrição, introdução, "Como jogar" e links dentro de `#root` |
 | `sitemap.xml` | Todas as páginas, cada uma com `xhtml:link` para pt, en e `x-default` (inglês, ou o `defaultLocale`); mais as `extraPages` |
-| `robots.txt` | Libera tudo e aponta para o sitemap |
+| `/<lang>/<artigo>/index.html` | Páginas de conteúdo (`articles`), HTML puro |
+| `robots.txt` | Libera tudo, nomeia os robôs de busca e de IA (Googlebot, Bingbot, GPTBot, OAI-SearchBot, ChatGPT-User, PerplexityBot, ClaudeBot, Claude-SearchBot, Google-Extended, Applebot-Extended) e aponta para o sitemap |
+| `llms.txt` | Resumo em Markdown (llmstxt.org): o jogo nos dois idiomas, páginas de conteúdo, variações, outros jogos e links fixos |
 | `/og/<lang>[-<slug>].svg` | Imagem 1200x630 por página, só se o jogo não informar `shareImage` (com aviso) |
 
 ## Imagem de compartilhamento

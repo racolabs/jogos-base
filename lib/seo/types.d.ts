@@ -23,6 +23,68 @@ export interface SeoVariant {
     help?: Record<Lang, readonly string[]>;
     /** Parágrafo de introdução próprio desta variação. O `intro` do jogo vale só na página inicial. */
     intro?: Partial<Record<Lang, string>>;
+    /**
+     * HTML extra depois da ajuda, por idioma (ex.: a grade do Sudoku do dia). **Não é escapado**: só texto gerado pelo
+     * próprio jogo no build, nunca entrada de usuário. Sem `<script>`.
+     */
+    html?: Partial<Record<Lang, string>>;
+    /** Fica fora do `llms.txt` (ex.: as páginas de cada dia do arquivo). Padrão: entra. */
+    llms?: boolean;
+}
+/** Bloco de texto de uma página de conteúdo: título (`<h2>`), parágrafos e lista opcional. Tudo escapado. */
+export interface SeoSection {
+    heading: string;
+    paragraphs?: readonly string[];
+    list?: readonly string[];
+    /** Lista numerada (`<ol>`) em vez de marcadores. */
+    ordered?: boolean;
+}
+export interface SeoFaqItem {
+    q: string;
+    a: string;
+}
+/** Texto de uma página de conteúdo num idioma. */
+export interface SeoArticleText {
+    /** `<title>` e `<h1>`. */
+    title: string;
+    /** Meta description (~160 caracteres). */
+    description: string;
+    /** Rótulo curto nos links entre páginas (ex.: "Como jogar"). Padrão: o título. */
+    label?: string;
+    intro?: string;
+    sections: readonly SeoSection[];
+    /** Perguntas frequentes: viram `<h2>`/`<h3>` visíveis e dados estruturados `FAQPage`. */
+    faq?: readonly SeoFaqItem[];
+    /** Título da seção de perguntas. Padrão: "Perguntas frequentes" / "Frequently asked questions". */
+    faqTitle?: string;
+}
+/**
+ * Página de conteúdo (regras, estratégias, perguntas), em HTML puro e sem o jogo: o módulo escreve a página inteira
+ * com `canonical`, `hreflang`, Open Graph, `BreadcrumbList`, `FAQPage`, botão para jogar e links para as outras páginas.
+ */
+export interface SeoArticle {
+    /** Caminho em cada idioma: `/pt/como-jogar/` e `/en/how-to-play/` (minúsculas, barra no fim). */
+    paths: Localized;
+    text: Record<Lang, SeoArticleText>;
+}
+/** Outro jogo do estúdio, para os links cruzados ("Outros jogos da RacoLabs"). */
+export interface SeoOtherGame {
+    id: string;
+    /** Endereço da página do jogo em cada idioma. */
+    url: Localized;
+    name: Localized;
+    /** Uma frase sobre o jogo. */
+    blurb: Localized;
+}
+/** Cores das páginas de conteúdo (claro e escuro). Padrão: a casca comum da RacoLabs. */
+export interface SeoArticleTheme {
+    accent: string;
+    accentDark: string;
+    /** Texto sobre o botão de destaque. Padrão: branco no claro e a cor do chão no escuro. */
+    onAccent?: string;
+    onAccentDark?: string;
+    /** Ícone da aba (`<link rel="icon">`). Padrão: `/icon-192.png`. */
+    icon?: string;
 }
 export interface SeoGame {
     /** Endereço público do jogo, sem barra no fim: `https://sudoku.racolabs.app`. */
@@ -78,6 +140,21 @@ export interface SeoGame {
         name: string;
         url: string;
     };
+    /**
+     * Primeiro degrau do `BreadcrumbList` (ex.: RacoLabs, com o endereço do site em cada idioma). Sem ele, a trilha começa no jogo.
+     */
+    studio?: {
+        name: string;
+        url: Localized;
+    };
+    /** Páginas de conteúdo (como jogar, estratégias, perguntas). Entram no sitemap, no `llms.txt` e nos links das páginas do jogo. */
+    articles?: readonly SeoArticle[];
+    /** Outros jogos do estúdio, linkados em todas as páginas ("Outros jogos da RacoLabs"). */
+    otherGames?: readonly SeoOtherGame[];
+    /** Título da seção de outros jogos. Padrão: "Outros jogos" / "More games". */
+    otherGamesTitle?: Localized;
+    /** Cores das páginas de conteúdo. */
+    articleTheme?: SeoArticleTheme;
 }
 export interface SeoAlternate {
     hreflang: string;
@@ -112,4 +189,32 @@ export interface SeoPage {
     alternates: SeoAlternate[];
     /** Imagem de compartilhamento, caminho a partir da raiz ou endereço completo. */
     image: string;
+    /** HTML extra da variação (não escapado). */
+    html?: string;
+    /** Páginas de conteúdo do idioma, para os links ("Guias"). */
+    guides: readonly SeoLink[];
+    /** Outros jogos, para os links cruzados. */
+    others: readonly SeoLink[];
+    /** Título da seção de outros jogos. */
+    othersTitle: string;
+    /** Trilha do `BreadcrumbList`, do estúdio (se houver) até esta página. */
+    breadcrumb: readonly {
+        name: string;
+        url: string;
+    }[];
+}
+/** Página de conteúdo pronta para escrever: texto de um idioma, endereço e versões. */
+export interface SeoArticlePage {
+    lang: Lang;
+    path: string;
+    url: string;
+    langTag: string;
+    article: SeoArticle;
+    text: SeoArticleText;
+    alternates: SeoAlternate[];
+    image: string;
+    breadcrumb: readonly {
+        name: string;
+        url: string;
+    }[];
 }

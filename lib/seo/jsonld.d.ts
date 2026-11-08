@@ -12,3 +12,13 @@ export declare function videoGameJsonLd(game: SeoGame, page: SeoPage): Record<st
 export declare function validateVideoGameJsonLd(ld: unknown): string[];
 /** JSON seguro para dentro de <script>: o caractere menor-que vira o escape unicode, então nada fecha a tag antes da hora. */
 export declare function jsonForScript(value: unknown): string;
+/** Trilha de navegação (`BreadcrumbList`) do estúdio até a página. Com menos de dois degraus não há trilha: devolve null. */
+export declare function breadcrumbJsonLd(crumbs: readonly {
+    name: string;
+    url: string;
+}[]): Record<string, unknown> | null;
+/** Perguntas frequentes (`FAQPage`), com as mesmas perguntas e respostas visíveis na página. */
+export declare function faqJsonLd(faq: readonly {
+    q: string;
+    a: string;
+}[], inLanguage: string): Record<string, unknown> | null;

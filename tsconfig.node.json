@@ -11,6 +11,6 @@
     "types": ["node"],
     "sourceMap": false
   },
-  "include": ["src/seo/node.ts"],
+  "include": ["src/seo/node.ts", "src/daily/index.ts"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

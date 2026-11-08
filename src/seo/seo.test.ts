@@ -266,7 +266,7 @@ describe('prerender em disco', () => {
       [
         'pt/index.html', 'en/index.html', 'pt/dificil/index.html', 'en/dificil/index.html', 'pt/diario/index.html', 'en/diario/index.html',
         'og/pt.svg', 'og/en.svg', 'og/pt-dificil.svg', 'og/en-dificil.svg', 'og/pt-diario.svg', 'og/en-diario.svg',
-        'sitemap.xml', 'robots.txt',
+        'sitemap.xml', 'robots.txt', 'llms.txt',
       ].sort(),
     );
     expect(readFileSync(join(dir, 'en', 'dificil', 'index.html'), 'utf8')).toBe(renderPage(EXAMPLE_TEMPLATE, EXAMPLE_GAME, page('/en/dificil/')));

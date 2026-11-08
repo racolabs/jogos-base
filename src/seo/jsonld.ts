@@ -76,3 +76,24 @@ export function jsonForScript(value: unknown): string {
     .replace(new RegExp(String.fromCharCode(0x2028), 'g'), '\\u2028')
     .replace(new RegExp(String.fromCharCode(0x2029), 'g'), '\\u2029');
 }
+
+/** Trilha de navegação (`BreadcrumbList`) do estúdio até a página. Com menos de dois degraus não há trilha: devolve null. */
+export function breadcrumbJsonLd(crumbs: readonly { name: string; url: string }[]): Record<string, unknown> | null {
+  if (crumbs.length < 2) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: c.url })),
+  };
+}
+
+/** Perguntas frequentes (`FAQPage`), com as mesmas perguntas e respostas visíveis na página. */
+export function faqJsonLd(faq: readonly { q: string; a: string }[], inLanguage: string): Record<string, unknown> | null {
+  if (!faq.length) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    inLanguage,
+    mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  };
+}

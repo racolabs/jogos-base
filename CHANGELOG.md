@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.0
+
+SEO, onda 1: conteúdo indexável, links cruzados e leitura por IA. Tudo é opção nova de `SeoGame`; sem elas o resultado só muda no `robots.txt` (robôs nomeados) e no novo `llms.txt`.
+
+- `articles`: páginas de conteúdo (como jogar, estratégias, perguntas) em HTML puro, com `Article`, `BreadcrumbList` e `FAQPage`, trilha visível, botão para jogar e links para as outras páginas, variações e outros jogos. Entram no sitemap e no `llms.txt`; as páginas do jogo ganham a lista "Guias".
+- `otherGames` + `RACOLABS_GAMES`: "Outros jogos" em todas as páginas (sem o próprio jogo). `studio` + `RACOLABS_STUDIO`: `BreadcrumbList` estúdio › jogo › página em todas as páginas.
+- Variações com subpasta no `slug` (`diario/2026-11-08`), `html` próprio (não escapado, sem `<script>`) e `llms: false`.
+- `robots.txt` nomeia Googlebot, Bingbot, GPTBot, OAI-SearchBot, ChatGPT-User, PerplexityBot, ClaudeBot, Claude-SearchBot, Google-Extended e Applebot-Extended, todos liberados; `llms.txt` (llmstxt.org) gerado do mesmo `SeoGame`.
+- `navigateFallbackDenylist(game)`: o service worker para de trocar páginas de conteúdo e privacidade pelo `index.html` do jogo.
+- `jogos-base/daily/node`: o módulo `daily` compilado em JS, para o prerender gerar o mesmo desafio do dia que o navegador.
+
 ## 0.13.0
 
 Adaptador do CrazyGames atrás do `AdProvider`, para gerar o build do portal sem mudar o jogo. (#44)
