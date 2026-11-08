@@ -4,12 +4,13 @@
 
 Navegação de quem joga: `HelpMore`, o "Ajuda e mais" do menu/configurações. Opcional; quem não usa não muda nada. As páginas "Como jogar" e "Estratégias" e as variações só tinham link no HTML pré-renderizado, que some quando o jogo carrega.
 
-- `HelpMore` (`jogos-base/ui`): links para as páginas de conteúdo (`articles`), as variações com página própria (`variants`), a privacidade (opcional, via `privacy`; `PRIVACY_PATHS` é o caminho dos jogos RacoLabs) e "Outros jogos" (reaproveita `MoreGames`). Textos em pt/en, alvos de toque de 44 px, foco visível e aviso "(abre em nova aba)" para leitor de tela. `helpLinksOf(game, lang, privacy?)` devolve os mesmos links sem React.
-- Fonte única: os caminhos saem dos mesmos `articles` e `variants` que o `seo` usa no build; o jogo passa esses objetos, sem repetir slug. Variações com `llms: false` (dias do arquivo) ficam de fora, como no `seo`.
+- `HelpMore` (`jogos-base/ui`): links para as páginas de conteúdo (`articles`), a privacidade (opcional, em grupo próprio, via `privacy`; `PRIVACY_PATHS` é o caminho dos jogos RacoLabs) e "Outros jogos" (reaproveita `MoreGames`). Textos em pt/en, alvos de toque de 44 px, foco visível e aviso "(abre em nova aba)" para leitor de tela. `helpLinksOf(game, lang, privacy?)` devolve os mesmos links sem React.
+- Fonte única: os caminhos saem dos mesmos `articles` que o `seo` usa no build; o jogo passa esse objeto, sem repetir slug.
+- **Sem variações (/pt/dificil/, /pt/flor/...) de propósito**: cada uma é a própria SPA, e abri-la noutra aba deixaria duas abas gravando o mesmo perfil no localStorage (a última sobrescreve estatísticas, sequência e partida salva). O jogo já tem seletor de modo/dificuldade; as páginas de variação seguem no `seo` e no site do estúdio. (Alternativa descartada: reidratar o perfil num listener de `storage`, que exigiria mudar o armazenamento de cada jogo.)
+- **Offline**: as páginas de conteúdo ficam fora do fallback do service worker, então sem rede abririam a tela de erro do navegador. Com `navigator.onLine === false` (escuta `online`/`offline`) os links aparecem desabilitados com a nota "precisa de internet" / "needs internet".
 - Sempre em nova aba (`target="_blank" rel="noopener"`): as páginas são documentos fora do app, e abrir na mesma aba descartaria a partida em andamento. O `onOpen(kind, alvo)` opcional serve à métrica do jogo; nenhum dado novo é coletado e nada é carregado de outro host (CSP e anúncios intactos).
 - Perfil de portal: com `externalLinks` bloqueado (CrazyGames) o componente inteiro some, porque o pacote do portal não leva as páginas; com `crossPromo` bloqueado some só "Outros jogos".
-- `SeoVariant.label` (opcional): rótulo curto para o menu ("Difícil"). Não muda nenhuma página gerada; sem ele vale o `title`.
-- `SHELL_CSS`: estilos `rl-help*`, `rl-sr` (texto só para leitor de tela) e foco visível nos cartões de `MoreGames`.
+- `SHELL_CSS`: `.rl-help` já vem como cartão (fundo `--surface`, raio 20, mesmo padrão dos grupos de Configurações), mais `rl-sr` (texto só para leitor de tela) e foco visível nos cartões de `MoreGames`. O jogo não precisa de CSS próprio.
 
 ## 0.14.0
 
