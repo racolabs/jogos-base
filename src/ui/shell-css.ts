@@ -55,6 +55,20 @@ export const SHELL_CSS = `
 .rl-more__name { max-width: 100%; }
 .rl-more__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rl-more__game:active { transform: translateY(2px); }
+.rl-help { display: flex; flex-direction: column; gap: 12px; background: var(--surface); border-radius: 20px; padding: 14px 16px; }
+.rl-help__title { margin: 0; font: 800 calc(18px * var(--fs)) var(--font-ui); }
+.rl-help__group { display: flex; flex-direction: column; gap: 6px; }
+.rl-help__label { margin: 0; font-size: calc(13px * var(--fs)); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.rl-help__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.rl-help__link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 14px; background: var(--surface-2); color: var(--ink); text-decoration: none; font: 800 calc(15px * var(--fs)) var(--font-ui); }
+.rl-help__link:active { transform: translateY(2px); }
+.rl-help__link:focus-visible, .rl-more__game:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.rl-help__ext { color: var(--muted); }
+.rl-help .rl-more__game { background: var(--surface-2); }
+.rl-help__link--off { opacity: .6; cursor: default; }
+.rl-help__link--off:active { transform: none; }
+.rl-help__note { font-weight: 500; color: var(--muted); font-size: calc(13px * var(--fs)); }
+.rl-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .rl-mcard { width: 100%; border: 0; background: var(--surface); color: var(--ink); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; text-align: left; font: inherit; }
 .rl-mcard:active { transform: translateY(2px); }
 .rl-mcard__top { display: flex; align-items: center; gap: 10px; }

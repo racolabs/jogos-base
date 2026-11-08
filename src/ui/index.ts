@@ -8,3 +8,4 @@ export * from './missions.tsx';
 export { androidIntentUrl, appLinkProps, isAndroid, storeUrl, type AppLinkOptions } from './applink.ts';
 export { GAMES, MoreGames, type GameInfo } from './games.tsx';
 export { PrivacyChoicesButton, openPrivacyChoices, type PrivacyChoicesButtonProps } from './privacy.tsx';
+export { HelpMore, helpLinksOf, PRIVACY_PATHS, type HelpGame, type HelpKind, type HelpLink, type HelpMoreProps } from './help.tsx';
