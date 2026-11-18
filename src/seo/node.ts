@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { renderArticle } from './article.ts';
 import { llmsTxt } from './llms.ts';
-import { articlePagesFor, extraEntriesFor, pagesFor, seoWarnings } from './pages.ts';
+import { articlePagesFor, defaultLangOf, extraEntriesFor, pagesFor, seoWarnings } from './pages.ts';
 import { renderPage, type RenderOptions } from './render.ts';
 import { shareImageSvg } from './share-image.ts';
 import { robotsTxt, sitemapXml } from './sitemap.ts';
@@ -28,6 +28,12 @@ export interface PrerenderOptions extends RenderOptions {
   outDir: string;
   /** AAAA-MM-DD da última mudança, se quiser no sitemap. */
   lastmod?: string;
+  /**
+   * Também reescreve o `index.html` da raiz (`/`, que o PWA e os apps abrem e que escolhe o idioma pelo navegador) com o
+   * texto da página inicial do `defaultLocale` e `canonical` para ela, para quem chega em `/` sem JS não ver página vazia.
+   * Sem o "Sobre o jogo" (que é só de `/pt/` e `/en/`). Fora do sitemap. Padrão: `false`.
+   */
+  rootIndex?: boolean;
 }
 
 export interface PrerenderResult {
@@ -76,6 +82,11 @@ export function prerender(opts: PrerenderOptions): PrerenderResult {
   for (const page of pages) {
     write(`${page.path.slice(1)}index.html`, renderPage(template, game, page, { rootId: opts.rootId }));
     if (!game.shareImage) write(page.image.slice(1), shareImageSvg(page, { name: game.name[page.lang], color: game.themeColor ?? '#1B1B3A' }));
+  }
+  if (opts.rootIndex) {
+    const home = pages.find((p) => p.lang === defaultLangOf(game) && !p.variant)!;
+    const { about: _about, ...rootPage } = home;
+    write('index.html', renderPage(template, game, rootPage, { rootId: opts.rootId }));
   }
   for (const a of articles) write(`${a.path.slice(1)}index.html`, renderArticle(game, a, { lastmod: opts.lastmod }));
   write('sitemap.xml', sitemapXml([...pages, ...articles, ...extraEntriesFor(game)], opts.lastmod));

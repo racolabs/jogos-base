@@ -1,7 +1,7 @@
 import { LANGS, localeOf, type Lang } from '../i18n/index.ts';
 import { GUIDES_TITLE, langTagOf } from './pages.ts';
-import { breadcrumbJsonLd, jsonForScript, videoGameJsonLd } from './jsonld.ts';
-import type { SeoGame, SeoLink, SeoPage } from './types.ts';
+import { breadcrumbJsonLd, faqJsonLd, jsonForScript, videoGameJsonLd } from './jsonld.ts';
+import type { SeoAbout, SeoGame, SeoLink, SeoPage, SeoSection } from './types.ts';
 
 export const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -41,6 +41,9 @@ export function headTags(game: SeoGame, page: SeoPage): string {
   ];
   const crumbs = breadcrumbJsonLd(page.breadcrumb);
   if (crumbs) lines.push(`<script type="application/ld+json">${jsonForScript(crumbs)}</script>`);
+  const faq = faqJsonLd(page.about?.faq ?? [], page.langTag);
+  if (faq) lines.push(`<script type="application/ld+json">${jsonForScript(faq)}</script>`);
+  if (page.about) lines.push(`<style data-seo="about">${ABOUT_CSS}</style>`);
   return lines.join('\n    ');
 }
 
@@ -57,6 +60,41 @@ export function bodyContent(page: SeoPage): string {
   const others = page.others.length ? `<nav data-seo="others"><h2>${escapeHtml(page.othersTitle)}</h2>${linkList(page.others)}</nav>` : '';
   const links = page.links.length ? `<nav data-seo="links">${linkList(page.links)}</nav>` : '';
   return `<main data-seo="prerendered"><h1>${escapeHtml(page.h1)}</h1><p>${escapeHtml(page.description)}</p>${intro}<h2>${escapeHtml(page.helpTitle)}</h2><ol>${steps}</ol>${page.html ?? ''}${guides}${others}${links}</main>`;
+}
+
+const ABOUT_T = {
+  pt: { title: 'Sobre o jogo', faq: 'Perguntas frequentes' },
+  en: { title: 'About the game', faq: 'Frequently asked questions' },
+} as const;
+
+/**
+ * Estilo do "Sobre o jogo": usa as variáveis do próprio jogo (`--ink`, `--muted`, `--font-ui`), com reserva.
+ * Os jogos zeram margens de h2/p e alguns bloqueiam seleção de texto; aqui isso é desfeito só dentro do bloco.
+ */
+export const ABOUT_CSS = [
+  '.rl-about{box-sizing:border-box;max-width:720px;margin:0 auto;padding:40px 16px 56px;color:var(--ink,#1C1D2B);font:17px/1.6 var(--font-ui,system-ui,-apple-system,"Segoe UI",sans-serif);-webkit-user-select:text;user-select:text}',
+  '.rl-about h2{font-size:24px;line-height:1.25;margin:0 0 12px}.rl-about h3{font-size:19px;line-height:1.3;margin:28px 0 8px}',
+  '.rl-about p,.rl-about li{color:var(--muted,#5E6075);max-width:68ch}.rl-about p{margin:0 0 12px}.rl-about ul,.rl-about ol{margin:0 0 12px;padding-left:22px}.rl-about li{margin:4px 0}',
+  '.rl-about dt{font-weight:700;margin:16px 0 4px}.rl-about dd{margin:0;color:var(--muted,#5E6075)}',
+].join('');
+
+const sectionHtml = (s: SeoSection) => {
+  const paragraphs = (s.paragraphs ?? []).map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+  const tag = s.ordered ? 'ol' : 'ul';
+  const list = s.list?.length ? `<${tag}>${s.list.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</${tag}>` : '';
+  return `<h3>${escapeHtml(s.heading)}</h3>${paragraphs}${list}`;
+};
+
+/** Bloco "Sobre o jogo", visível abaixo do jogo. Vazio se a página não tiver `about`. */
+export function aboutContent(game: SeoGame, page: SeoPage): string {
+  const about: SeoAbout | undefined = page.about;
+  if (!about) return '';
+  const t = ABOUT_T[page.lang];
+  const faq = about.faq?.length
+    ? `<h3>${escapeHtml(about.faqTitle?.trim() || t.faq)}</h3><dl>${about.faq.map((f) => `<dt>${escapeHtml(f.q)}</dt><dd>${escapeHtml(f.a)}</dd>`).join('')}</dl>`
+    : '';
+  const title = about.title?.trim() || t.title;
+  return `<section class="rl-about" data-seo="about" aria-labelledby="rl-about-title"><h2 id="rl-about-title">${escapeHtml(title)}</h2>${about.sections.map(sectionHtml).join('')}${faq}</section>`;
 }
 
 export interface RenderOptions {
@@ -107,5 +145,7 @@ export function renderPage(template: string, game: SeoGame, page: SeoPage, { roo
     : `<html lang="${escapeHtml(page.langTag)}">${html}`;
   html = html.replace(/<\/head>/i, () => `    ${headTags(game, page)}\n  </head>`);
   const [from, to] = findRoot(html, rootId)!;
-  return html.slice(0, from) + bodyContent(page) + html.slice(to);
+  const close = to + '</div>'.length;
+  // "Sobre o jogo" logo depois do elemento raiz: fica na página depois que o app monta.
+  return html.slice(0, from) + bodyContent(page) + html.slice(to, close) + aboutContent(game, page) + html.slice(close);
 }

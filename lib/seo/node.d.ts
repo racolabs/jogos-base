@@ -15,6 +15,12 @@ export interface PrerenderOptions extends RenderOptions {
     outDir: string;
     /** AAAA-MM-DD da última mudança, se quiser no sitemap. */
     lastmod?: string;
+    /**
+     * Também reescreve o `index.html` da raiz (`/`, que o PWA e os apps abrem e que escolhe o idioma pelo navegador) com o
+     * texto da página inicial do `defaultLocale` e `canonical` para ela, para quem chega em `/` sem JS não ver página vazia.
+     * Sem o "Sobre o jogo" (que é só de `/pt/` e `/en/`). Fora do sitemap. Padrão: `false`.
+     */
+    rootIndex?: boolean;
 }
 export interface PrerenderResult {
     pages: SeoPage[];

@@ -40,6 +40,17 @@ export function validateGame(game: SeoGame): string[] {
     }
   }
   for (const lang of LANGS) {
+    const about = game.about?.[lang];
+    if (!about) continue;
+    if (about.title !== undefined && !about.title.trim()) errors.push(`about.${lang}.title vazio`);
+    if (!about.sections?.length) errors.push(`about.${lang}.sections vazio`);
+    for (const sec of about.sections ?? []) {
+      if (!sec.heading?.trim()) errors.push(`about.${lang}: seção sem título`);
+      if (!sec.paragraphs?.length && !sec.list?.length) errors.push(`about.${lang}: seção "${sec.heading}" vazia`);
+    }
+    for (const f of about.faq ?? []) if (!f.q?.trim() || !f.a?.trim()) errors.push(`about.${lang}: pergunta ou resposta vazia`);
+  }
+  for (const lang of LANGS) {
     const cur = currencyOf(game, lang);
     if (!/^[A-Z]{3}$/.test(cur)) errors.push(`priceCurrency.${lang} deve ter 3 letras maiúsculas: ${cur}`);
   }
@@ -206,6 +217,7 @@ export function pagesFor(game: SeoGame): SeoPage[] {
         others: othersOf(game, lang),
         othersTitle: otherGamesTitleOf(game, lang),
         breadcrumb: variant ? [...crumbsOf(game, lang), { name: variant.title[lang], url: game.origin + path }] : crumbsOf(game, lang),
+        ...(!variant && game.about?.[lang] ? { about: game.about[lang] } : {}),
       });
     }
   }

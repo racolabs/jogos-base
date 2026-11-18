@@ -59,6 +59,19 @@ export interface SeoArticleText {
     faqTitle?: string;
 }
 /**
+ * Texto "Sobre o jogo" da página inicial de um idioma: seções e perguntas que ficam **visíveis abaixo do jogo**
+ * (fora do elemento onde o app monta, então não somem quando o JS carrega). Tudo escapado.
+ */
+export interface SeoAbout {
+    /** Título do bloco (`<h2>`). Padrão: "Sobre o jogo" / "About the game". */
+    title?: string;
+    sections: readonly SeoSection[];
+    /** Perguntas frequentes: visíveis e em `FAQPage` na página inicial do idioma. */
+    faq?: readonly SeoFaqItem[];
+    /** Título das perguntas. Padrão: "Perguntas frequentes" / "Frequently asked questions". */
+    faqTitle?: string;
+}
+/**
  * Página de conteúdo (regras, estratégias, perguntas), em HTML puro e sem o jogo: o módulo escreve a página inteira
  * com `canonical`, `hreflang`, Open Graph, `BreadcrumbList`, `FAQPage`, botão para jogar e links para as outras páginas.
  */
@@ -155,6 +168,11 @@ export interface SeoGame {
     otherGamesTitle?: Localized;
     /** Cores das páginas de conteúdo. */
     articleTheme?: SeoArticleTheme;
+    /**
+     * "Sobre o jogo" por idioma: texto próprio visível abaixo do jogo, só na página inicial (`/pt/`, `/en/`).
+     * Não sai na raiz (`/`, aberta pelo PWA instalado e pelos apps) nem nas variações.
+     */
+    about?: Partial<Record<Lang, SeoAbout>>;
 }
 export interface SeoAlternate {
     hreflang: string;
@@ -202,6 +220,8 @@ export interface SeoPage {
         name: string;
         url: string;
     }[];
+    /** "Sobre o jogo" visível abaixo do jogo (só na página inicial do idioma). */
+    about?: SeoAbout;
 }
 /** Página de conteúdo pronta para escrever: texto de um idioma, endereço e versões. */
 export interface SeoArticlePage {
