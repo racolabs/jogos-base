@@ -68,6 +68,15 @@ Também opcionais:
 
 Toda página do jogo leva `BreadcrumbList` num segundo `<script type="application/ld+json">`, depois do `VideoGame` (sem `studio` e na página inicial, não há trilha: um degrau só não vale).
 
+## "Sobre o jogo" e raiz com texto (0.16.0)
+
+| Opção | Efeito |
+| --- | --- |
+| `about` | Por idioma: `{ title?, sections: [{ heading, paragraphs, list, ordered }], faq?: [{ q, a }], faqTitle? }`. Vira um `<section class="rl-about" data-seo="about">` **depois** do `#root`: continua visível depois que o app monta, abaixo do jogo. Só na página inicial de cada idioma. Com `faq`, `FAQPage` no head. Título padrão: "Sobre o jogo" / "About the game". |
+| `prerender({ rootIndex: true })` | Reescreve `dist/index.html` (a raiz `/`) com o texto da página inicial do `defaultLocale` dentro do `#root` e `canonical` para `/<idioma>/`. Sem o "Sobre" (o PWA e os apps abrem `/`). Não entra no sitemap. |
+
+Texto do "Sobre" precisa ser específico do jogo e verdadeiro (o que o jogo tem de fato), nunca enchimento: é o que separa a página de um clone qualquer na análise do AdSense.
+
 ### Service worker
 
 O `navigateFallback` do Workbox (padrão do `vite-plugin-pwa`) troca **qualquer** navegação pelo `index.html` do jogo, o que esconde as páginas de conteúdo e a privacidade de quem já tem o jogo instalado. Passe a lista do módulo:

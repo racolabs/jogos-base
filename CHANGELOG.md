@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0
+
+"Sobre o jogo" visível e raiz com texto, para as páginas que levam anúncio não serem só o jogo (o AdSense recusou racolabs.app por "conteúdo de baixo valor"). Opcional; quem não usa não muda nada.
+
+- `about` (`SeoGame`): por idioma, seções e perguntas frequentes num `<section class="rl-about">` logo **depois** do `<div id="root">`, então o texto continua na página depois que o app monta (o texto dentro do `#root` some). Só em `/pt/` e `/en/`; variações não levam. Com `faq`, a página inicial ganha `FAQPage`. Estilo embutido (`ABOUT_CSS`) usa as variáveis do jogo (`--ink`, `--muted`, `--font-ui`) e devolve a seleção de texto dentro do bloco.
+- `prerender({ rootIndex: true })`: reescreve também o `index.html` da raiz com o texto da página inicial do `defaultLocale` e `canonical` para ela. A raiz continua escolhendo o idioma pelo navegador (sem redirecionamento), mas quem chega em `/` sem JavaScript deixa de ver uma página vazia. Sem o "Sobre", para o PWA instalado e os apps (que abrem `/`) não ganharem texto embaixo do jogo. Fora do sitemap.
+- `validateGame` recusa `about` sem seções, seção vazia, título vazio e pergunta sem resposta.
+
 ## 0.15.0
 
 Navegação de quem joga: `HelpMore`, o "Ajuda e mais" do menu/configurações. Opcional; quem não usa não muda nada. As páginas "Como jogar" e "Estratégias" e as variações só tinham link no HTML pré-renderizado, que some quando o jogo carrega.

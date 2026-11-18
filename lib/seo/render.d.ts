@@ -7,6 +7,13 @@ export declare function headTags(game: SeoGame, page: SeoPage): string;
  * O app troca isso quando carrega.
  */
 export declare function bodyContent(page: SeoPage): string;
+/**
+ * Estilo do "Sobre o jogo": usa as variáveis do próprio jogo (`--ink`, `--muted`, `--font-ui`), com reserva.
+ * Os jogos zeram margens de h2/p e alguns bloqueiam seleção de texto; aqui isso é desfeito só dentro do bloco.
+ */
+export declare const ABOUT_CSS: string;
+/** Bloco "Sobre o jogo", visível abaixo do jogo. Vazio se a página não tiver `about`. */
+export declare function aboutContent(game: SeoGame, page: SeoPage): string;
 export interface RenderOptions {
     /** Elemento onde o app monta. Padrão: `root`. */
     rootId?: string;

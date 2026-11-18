@@ -1,5 +1,6 @@
 export type {
   Localized,
+  SeoAbout,
   SeoAlternate,
   SeoArticle,
   SeoArticlePage,
@@ -17,7 +18,7 @@ export type {
 } from './types.ts';
 export { DEFAULT_LANG, articlePagesFor, currencyOf, defaultLangOf, extraEntriesFor, guidesOf, langTagOf, othersOf, pagesFor, seoWarnings, validateGame } from './pages.ts';
 export { breadcrumbJsonLd, faqJsonLd, jsonForScript, validateVideoGameJsonLd, videoGameJsonLd } from './jsonld.ts';
-export { bodyContent, escapeHtml, headTags, renderPage, type RenderOptions } from './render.ts';
+export { ABOUT_CSS, aboutContent, bodyContent, escapeHtml, headTags, renderPage, type RenderOptions } from './render.ts';
 export { renderArticle, variantLinksOf } from './article.ts';
 export { llmsTxt } from './llms.ts';
 export { RACOLABS_GAMES, RACOLABS_STUDIO } from './catalog.ts';
